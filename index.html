@@ -1,0 +1,1401 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Signal Line</title>
+<meta name="description" content="Build telegraph networks that meet a latency, throughput and budget contract.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#141d2b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Signal Line">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>:root{color-scheme:dark;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);background:#141d2b}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: one-screen app. A hand-tinted survey map sits in dusk-blue chrome; three contract meters above it are the score. */
+:root{
+  color-scheme:dark;
+  --ink:#141d2b; --panel:#1d2939; --panel2:#283649; --line:#3b4d66;
+  --paper:#efe7d2; --muted:#a3b3c8;
+  --sun:#f2b545; --dusk:#d0607f; --good:#86cf96; --warn:#ff9db5;
+  --display:"Bodoni Moda","Didot","Bodoni MT",Georgia,serif;
+  --ui:"Barlow","Helvetica Neue",Arial,sans-serif;
+  --cond:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--ink);color:var(--paper);font:15px/1.45 var(--ui);overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#app{height:100%;position:relative;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.screen{height:100%}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;touch-action:manipulation}
+button:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
+.btn{min-height:46px;padding:0 18px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);
+  font:600 15px var(--cond);letter-spacing:.04em;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn.primary{background:var(--sun);border-color:var(--sun);color:#2a1d05}
+.btn.ghost{background:transparent}
+.btn[aria-pressed="true"]{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+
+/* ---------- menu ---------- */
+#menu{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.menu-in{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:22px;padding-block:14px 30px}
+.masthead{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.mast-sem{width:104px;height:112px;flex:none;color:var(--sun)}
+.mast-sem svg{width:100%;height:100%}
+h1{font:700 clamp(38px,7vw,68px)/.95 var(--display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 em{font-style:italic;font-weight:500;color:var(--sun)}
+.lede{margin:10px 0 0;color:var(--muted);font-size:17px;max-width:48ch}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mode{min-height:64px;border-radius:12px;border:1px solid var(--line);background:var(--panel);padding:8px 12px;text-align:left;min-width:0}
+.mode b{display:block;font:600 16px var(--cond);letter-spacing:.05em;text-transform:uppercase}
+.mode span{display:block;color:var(--muted);font-size:13px;line-height:1.3}
+.mode[aria-checked="true"]{border-color:var(--sun);background:var(--panel2);box-shadow:inset 0 0 0 1px var(--sun)}
+.mode[aria-checked="true"] b{color:var(--sun)}
+#eras{display:flex;flex-direction:column;gap:22px}
+h2{font:500 26px var(--display);margin:6px 0 -8px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+h2 small{font:600 13px var(--cond);letter-spacing:.12em;color:var(--muted)}
+.levels{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.lv{min-height:92px;border-radius:12px;background:var(--panel);border:1px solid var(--line);padding:10px 12px;text-align:left;
+  display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;min-width:0}
+.lv i{font:italic 500 34px/1 var(--display);color:var(--sun);grid-row:span 2}
+.lv b{font:600 15px/1.15 var(--cond);letter-spacing:.03em}
+.lv .st{font-size:15px;letter-spacing:2px;color:var(--sun)}
+.lv .st s{text-decoration:none;color:var(--line)}
+.lv .st u{text-decoration:none;font:600 11px var(--cond);letter-spacing:.08em;color:var(--muted);margin-left:6px;text-transform:uppercase}
+.lv[disabled]{opacity:.4}
+.lv[disabled] i{color:var(--muted)}
+.lv.add{border-style:dashed}
+.cl{display:flex;flex-direction:column;gap:6px;min-width:0}
+.btn.mini{min-height:44px;font-size:13px}
+.menu-foot{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ---------- game ---------- */
+#game{display:flex;flex-direction:column;gap:8px}
+.hud{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px 14px;align-items:center}
+.hud h3{margin:0;font:500 22px/1 var(--display);white-space:nowrap}
+.hud h3 small{display:block;font:600 11px var(--cond);letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:3px}
+.hud-l,.hud-r{display:flex;gap:8px;align-items:center}
+.icon{width:46px;height:46px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font:600 18px var(--cond)}
+.meters{min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px 14px}
+.meter{min-width:0;display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:0 8px}
+.meter small{font:600 11px var(--cond);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.meter b{font:600 15px var(--cond);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.meter i{grid-column:1/-1;position:relative;height:8px;border-radius:4px;background:var(--panel2);display:block;margin-top:3px}
+.meter u{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--sun);max-width:100%}
+.meter.ok u{background:var(--good)}
+.meter.bad u{background:var(--dusk)}
+.meter.bad b{color:var(--warn)}
+.meter s{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--paper);opacity:.85}
+.err{color:var(--warn)}
+/* dispatch slip: the game's voice, styled as a telegram form */
+.dispatch{--tone:#3b4d66;position:absolute;z-index:4;top:10px;left:10px;right:10px;margin:0 auto;max-width:820px;
+  display:flex;align-items:center;gap:14px;min-height:58px;padding:8px 40px 8px 10px;border-radius:12px;
+  background:var(--paper);color:var(--ink);border-left:8px solid var(--tone);box-shadow:0 4px 0 rgba(0,0,0,.25);
+  background-image:repeating-linear-gradient(0deg,transparent 0 23px,rgba(20,29,43,.06) 23px 24px)}
+.dispatch[data-tone="bad"]{--tone:#c2456a}.dispatch[data-tone="warn"]{--tone:#d9961e}.dispatch[data-tone="good"]{--tone:#3f9a5a}
+.stamp{flex:none;width:40px;height:40px;border-radius:50%;background:var(--tone);color:#fff;display:flex;align-items:center;justify-content:center;
+  font:700 22px/1 var(--cond);box-shadow:inset 0 0 0 3px rgba(255,255,255,.35)}
+.dtext{min-width:0;display:flex;align-items:baseline;gap:4px 14px;flex-wrap:wrap}
+.dtext b.h{font:700 22px/1.1 var(--display);white-space:nowrap;color:var(--tone)}
+.dtext span{font:500 16px/1.35 var(--ui);color:#2a3446}
+.dtext span b{font-weight:700;color:var(--ink)}
+.dtext .w{color:#b23a5c;font-weight:600}.dtext .g{color:#b07c12;letter-spacing:2px}
+.dispatch.pop{animation:slip .35s ease-out}
+.dispatch{pointer-events:none;transition:opacity .15s}.dispatch.dim{opacity:.15}
+.dispatch .dx{pointer-events:auto;position:absolute;top:2px;right:2px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font:600 24px/1 var(--cond);color:#7a8496;border-radius:10px}
+.btn[aria-disabled="true"]{opacity:.5}
+@keyframes slip{0%{transform:translateY(-6px);opacity:.3}100%{transform:none;opacity:1}}
+/* piece cards */
+.tools{display:flex;gap:6px;flex-wrap:wrap}
+.tcard{border-radius:12px;background:var(--panel);border:1px solid var(--line);padding:6px 10px 7px;text-align:left;
+  display:flex;flex-direction:column;gap:3px;color:var(--paper);min-width:0}
+.tcard .nm{display:flex;align-items:center;gap:6px;font:600 14px var(--cond);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.tcard .nm svg{width:18px;height:24px;flex:none}
+.tcard .nm em{font-style:normal;color:var(--sun);letter-spacing:.02em;margin-left:auto;padding-left:8px}
+.tcard dl{margin:0;display:grid;grid-template-columns:auto auto;gap:1px 12px}
+.tcard dd{margin:0;font:500 12px/1.3 var(--cond);color:var(--muted);white-space:nowrap;letter-spacing:.02em}
+.tcard dd b{font:600 14px var(--cond);color:var(--paper);font-variant-numeric:tabular-nums;margin-right:3px}
+.tcard[aria-pressed="true"]{background:var(--paper);color:var(--ink);border-color:var(--paper);box-shadow:0 0 0 2px var(--sun)}
+.tcard[aria-pressed="true"] dd{color:#5a6577}.tcard[aria-pressed="true"] dd b{color:var(--ink)}.tcard[aria-pressed="true"] .nm em{color:#9a6a0c}
+.iconbtn{width:50px;min-height:36px;padding:0;font-size:18px}
+.stack{display:flex;flex-direction:column;gap:4px}
+#toolbar{gap:6px}
+.mapwrap{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
+#map{border-radius:10px;touch-action:none;display:block;box-shadow:0 0 0 1px var(--line),0 10px 30px rgba(0,0,0,.35)}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.toolbar .sp{flex:1}
+#send{min-width:120px;min-height:58px;font-size:17px}
+.brushes{display:flex;gap:6px;flex-wrap:wrap}
+.brush{padding:0 10px;font-size:13px;gap:6px}
+.brush i{width:18px;height:18px;border-radius:5px;border:1px solid rgba(0,0,0,.35);flex:none}
+
+/* decode */
+.decode{position:absolute;left:0;right:0;bottom:0;background:rgba(20,29,43,.95);border:1px solid var(--line);border-radius:14px;
+  padding:12px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;backdrop-filter:blur(6px)}
+.sig{width:150px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.sigbox{width:150px;height:130px;border-radius:12px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--paper)}
+.sigbox svg{width:120px;height:120px}
+.sigbox.pop svg,.sigbox.pop .tape{animation:pop .28s ease-out}
+@keyframes pop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
+.lamp{width:34px;height:34px;border-radius:50%;background:#3a3222;border:2px solid var(--line);margin-bottom:10px}
+.lamp.on{background:var(--sun);box-shadow:0 0 18px var(--sun)}
+.tapewrap{display:flex;flex-direction:column;align-items:center}
+.tape{display:flex;gap:6px;align-items:center;min-height:14px}
+.tape i,.k .mc i{display:inline-block;background:currentColor;border-radius:99px}
+.tape i.dot{width:13px;height:13px}.tape i.dash{width:34px;height:13px}
+.slots{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center}
+.slots span{width:32px;height:38px;border-bottom:3px solid var(--line);font:700 26px/36px var(--display);text-align:center}
+.slots span.cur{border-color:var(--sun)}
+.slots em{font:500 13px var(--cond);font-style:normal;color:var(--muted);margin-left:8px}
+.dtimer{height:6px;border-radius:3px;background:var(--panel2);margin-bottom:8px;overflow:hidden}
+.dtimer u{display:block;height:100%;width:100%;background:var(--sun)}
+.keys{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:5px}
+.k{min-height:66px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);font:600 17px var(--cond);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px 0;min-width:0;color:var(--paper)}
+.k svg{width:42px;height:42px;color:var(--sun)}
+.k .mc{display:flex;gap:2px;height:8px;align-items:center;color:var(--sun)}
+.k .mc i.dot{width:5px;height:5px}.k .mc i.dash{width:11px;height:5px}
+.k.bad{animation:shake .3s;background:var(--dusk)}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* overlay */
+#overlay{position:absolute;inset:0;background:rgba(10,14,22,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;max-width:600px;width:100%;max-height:100%;overflow-y:auto;
+  display:flex;flex-direction:column;gap:12px}
+.card.wide{max-width:860px}
+.card h4{font:700 32px/1.05 var(--display);margin:0;text-wrap:balance}
+.card h4 small{display:block;font:600 12px var(--cond);letter-spacing:.14em;color:var(--sun);text-transform:uppercase;margin-bottom:6px}
+.card p{margin:0;color:var(--paper);max-width:62ch}
+.card p.m{color:var(--muted)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.facts div{background:var(--panel2);border-radius:10px;padding:8px 10px;font:600 17px var(--cond);font-variant-numeric:tabular-nums}
+.facts small{display:block;font:600 11px var(--cond);letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.new{display:flex;flex-direction:column;gap:8px}
+.new h5{margin:4px 0 0;font:600 12px var(--cond);letter-spacing:.14em;color:var(--sun);text-transform:uppercase}
+.ni{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;background:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.ni i{width:26px;height:26px;border-radius:7px;margin-top:2px;border:1px solid rgba(255,255,255,.25)}
+.ni b{display:block;font:600 16px var(--cond);letter-spacing:.03em}
+.ni span{color:var(--muted);font-size:14px;line-height:1.4}
+.stars{font-size:44px;letter-spacing:8px;color:var(--sun);line-height:1}
+.stars s{text-decoration:none;color:var(--line)}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.rules{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;color:var(--paper)}
+.rules b{color:var(--sun);font-weight:600}
+.book{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:6px}
+.book .k{cursor:default}
+.book .k .mc{height:12px;gap:3px}.book .k .mc i.dot{width:7px;height:7px}.book .k .mc i.dash{width:16px;height:7px}
+.tabs{display:flex;gap:8px}
+input,select,textarea{font:400 16px var(--ui);color:var(--paper);background:var(--ink);border:1px solid var(--line);border-radius:8px;
+  padding:10px;min-height:46px;width:100%;-webkit-user-select:text;user-select:text}
+textarea{min-height:110px;resize:vertical;line-height:1.4}
+textarea.code{font:13px/1.35 ui-monospace,Menlo,Consolas,monospace;min-height:220px;white-space:pre}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--sun);outline-offset:1px}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+.form label,.form .fld{display:flex;flex-direction:column;gap:4px;font:600 12px var(--cond);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);min-width:0}
+.form .full{grid-column:1/-1}
+.step{display:flex;align-items:center;gap:8px}
+.step .icon{flex:none}
+.step b{font:600 20px var(--cond);color:var(--paper);min-width:2ch;text-align:center;font-variant-numeric:tabular-nums}
+
+@media (max-width:720px){
+  .hud{grid-template-columns:1fr auto}
+  .meters{grid-column:1/-1;grid-row:2;gap:3px 8px}
+  .dtext b.h{font-size:18px}.dtext span{font-size:14px}.dispatch{min-height:50px}.stamp{width:32px;height:32px;font-size:18px}
+  .tcard{padding:4px 8px}.tcard dl{gap:0 8px}.tcard dd{font-size:11px}.tcard dd b{font-size:12px}
+  .meter{grid-template-columns:1fr}.meter b{text-align:left;font-size:13px}.meter small{font-size:10px}
+  .hud-l{min-width:0}.hud h3{overflow:hidden;text-overflow:ellipsis}
+  .hud-r .btn{padding:0 10px;font-size:13px}
+  .modes{grid-template-columns:1fr}
+  .decode{grid-template-columns:1fr;gap:8px;padding:8px}
+  .sig{width:auto;flex-direction:row}.sigbox{width:96px;height:84px}.sigbox svg{width:78px;height:78px}
+  .k{min-height:44px;font-size:14px}.k svg{width:24px;height:24px}
+  .book{grid-template-columns:repeat(6,minmax(0,1fr))}
+  #send{min-width:110px}
+  .form{grid-template-columns:1fr}
+  .brush{padding:0 8px;min-height:44px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+
+<div id="app">
+  <section id="menu" class="screen">
+    <div class="menu-in">
+      <header class="masthead">
+        <div class="mast-sem" id="heroSem" aria-hidden="true"></div>
+        <div>
+          <h1>Signal <em>Line</em></h1>
+          <p class="lede">Build the line across hill, forest, river and marsh. Every contract asks three things: fast enough, busy enough, inside the budget.</p>
+        </div>
+      </header>
+      <div class="modes" role="radiogroup" aria-label="Difficulty" id="modes">
+        <button class="mode" role="radio" data-mode="engineer"><b>Engineer</b><span>Build the network. The messages read themselves.</span></button>
+        <button class="mode" role="radio" data-mode="operator"><b>Operator</b><span>Decode a message on the finished line, code chart on the keys.</span></button>
+        <button class="mode" role="radio" data-mode="expert"><b>Expert</b><span>Decode from memory. No chart.</span></button>
+      </div>
+      <div id="eras"></div>
+      <h2>Your Levels <small>EDITOR · JSON IMPORT AND EXPORT</small></h2>
+      <div class="levels" id="lv3"></div>
+      <div class="menu-foot">
+        <button class="btn" data-act="book">Code book</button>
+        <button class="btn" data-act="rules">Rules</button>
+        <button class="btn" data-act="settings">Settings</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="game" class="screen" hidden>
+    <div class="hud">
+      <div class="hud-l">
+        <button class="icon" data-act="menu" aria-label="Back">&#8249;</button>
+        <h3 id="lvTitle"></h3>
+      </div>
+      <div class="meters" id="meters">
+        <div class="meter" id="mLat"><small>Latency</small><b></b><i><u></u></i></div>
+        <div class="meter" id="mRate"><small>Messages a minute</small><b></b><i><u></u></i></div>
+        <div class="meter" id="mCost"><small>Budget</small><b></b><i><u></u><s id="tk3"></s><s id="tk2"></s></i></div>
+      </div>
+      <div class="hud-r">
+        <button class="icon pl" data-act="book" aria-label="Code book">A&#183;</button>
+        <button class="icon pl" data-act="rules" aria-label="Rules">?</button>
+        <button class="btn ed" data-act="edSettings" hidden>Settings</button>
+        <button class="btn ed" data-act="edExport" hidden>Export</button>
+        <button class="btn primary ed" data-act="edTest" id="edTest" hidden>Test</button>
+      </div>
+    </div>
+    <div class="mapwrap" id="mapwrap">
+    <div class="dispatch" id="dispatch" data-tone="info" hidden role="status" aria-live="polite"><span class="stamp" id="dStamp">&rarr;</span><div class="dtext"><b class="h" id="dHead"></b><span id="status"></span></div><button class="dx" data-act="dismiss" aria-label="Dismiss message">&times;</button></div>
+      <canvas id="map"></canvas>
+      <div class="decode" id="decode" hidden>
+        <div class="sig"><div class="sigbox" id="sigbox"></div><button class="btn" id="replay" data-act="replay" hidden>Replay</button></div>
+        <div><div class="slots" id="slots"></div><div class="dtimer" id="dtimer" hidden><u></u></div><div class="keys" id="keys"></div></div>
+      </div>
+    </div>
+    <div class="toolbar" id="toolbar">
+      <div class="tools" id="tools"></div>
+      <div class="stack"><button class="btn ghost iconbtn" data-act="undo" id="undo" aria-label="Undo">&#8630;</button>
+      <button class="btn ghost iconbtn" data-act="clear" id="clear" aria-label="Clear all">&#10005;</button></div>
+      <button class="btn ghost" data-act="solution" id="solBtn" hidden>Solve</button>
+      <span class="sp"></span>
+      <button class="btn primary" data-act="send" id="send">Send</button>
+    </div>
+    <div class="toolbar" id="edbar" hidden>
+      <div class="brushes" id="brushes"></div>
+      <span class="sp"></span>
+      <button class="btn ghost" data-act="edBest" id="edBest">Best network</button>
+      <button class="btn ghost" data-act="edUndo" id="edUndo">Undo</button>
+    </div>
+  </section>
+
+  <div id="overlay" hidden><div class="card" id="card"></div></div>
+</div>
+
+<script id="core">
+/* Pure game rules: terrain, sight lines, links, traffic flow, solver. No DOM. */
+var Core = (function(){
+  var PLAIN=0,HILL=1,HIGH=2,MOUNT=3,FOREST=4,RIVER=5,SWAMP=6,SEA=7,DEEP=8,BUILD=9,BRIDGE=10,ESTATE=11,COMMON=12;
+  var CH={'.':PLAIN,'h':HILL,'H':HIGH,'M':MOUNT,'f':FOREST,'~':RIVER,'s':SWAMP,'w':SEA,'W':DEEP,'#':BUILD,'=':BRIDGE,'$':ESTATE,',':COMMON};
+  var GROUND=[0,1,2,4,0,0,0,0,0,0,0,0,0], OBS=[0,1,2,4,1.5,0,0,0,0,3,0,0,0], LANDX={11:2.5,12:.5};
+  var FOG_H=1.6, WIRE_R=2.3, OPT_R=4.2, FADE=6, CABLE_MAX=14, TUBE_K=10, BEND=5, JUNC=3;
+  var CAP={tower:2,pole:6,repeater:6,landing:6,tube:10,pump:10}, NLAT={tower:25,pole:1,repeater:8,landing:10,tube:2,pump:4};
+
+  function parse(map){
+    var h=map.length, w=map[0].length, t=new Uint8Array(w*h), marsh=new Int8Array(w*h).fill(-1), start, end, ends={}, x, y, k;
+    for(y=0;y<h;y++){ if(map[y].length!==w) throw new Error('row '+y+' length');
+      for(x=0;x<w;x++){ var c=map[y][x]; k=y*w+x;
+        if(c==='A'||c==='a'){start={x:x,y:y,kind:'station'};t[k]=c==='a'?HILL:PLAIN;}
+        else if('BbCcDd'.indexOf(c)>=0){ var U=c.toUpperCase(); ends[U]={x:x,y:y,kind:'station'}; t[k]=c===c.toLowerCase()?HILL:PLAIN; }
+        else { if(CH[c]===undefined) throw new Error('char '+c); t[k]=CH[c]; } } }
+    var n=0;
+    for(k=0;k<w*h;k++) if(t[k]===SWAMP&&marsh[k]<0){ var st=[k]; marsh[k]=n;
+      while(st.length){ var q=st.pop(), qx=q%w, qy=(q-qx)/w;
+        for(var dy=-1;dy<=1;dy++)for(var dx=-1;dx<=1;dx++){ var nx=qx+dx, ny=qy+dy;
+          if(nx<0||ny<0||nx>=w||ny>=h) continue; var nk=ny*w+nx;
+          if(t[nk]===SWAMP&&marsh[nk]<0){marsh[nk]=n;st.push(nk);} } }
+      n++; }
+    var el=['B','C','D'].filter(function(q){ return ends[q]; }).map(function(q){ return ends[q]; });
+    return {w:w,h:h,t:t,marsh:marsh,nMarsh:n,start:start,end:el[0],ends:el};
+  }
+  function typeAt(L,x,y){ return L.t[y*L.w+x]; }
+  function ground(L,p){ return GROUND[L.t[p.y*L.w+p.x]]; }
+  function isStation(L,x,y){ return (L.start.x===x&&L.start.y===y)||L.ends.some(function(e){ return e.x===x&&e.y===y; }); }
+  function wired(n){ return n.kind==='pole'||n.kind==='repeater'||n.kind==='landing'; }
+  function tubey(n){ return n.kind==='tube'||n.kind==='pump'; }
+  function passive(n){ return n.kind==='pole'||n.kind==='tube'; }
+  function fadeK(def){ return def.era===4?(def.fade?TUBE_K:0):(def.fade?FADE:0); }
+  function tools(def){ if(def.era===4) return def.fade?['tube','pump']:['tube']; var t=['tower']; if(def.era>=2){ t.push('pole'); if(def.fade) t.push('repeater'); } if(def.era===3) t.push('landing','cable'); return t; }
+  function coastal(L,x,y){ for(var dy=-1;dy<=1;dy++)for(var dx=-1;dx<=1;dx++){ var nx=x+dx, ny=y+dy; if(nx<0||ny<0||nx>=L.w||ny>=L.h) continue; var t=L.t[ny*L.w+nx]; if(t===SEA||t===DEEP) return true; } return false; }
+  function canBuild(L,x,y,kind){
+    if(x<0||y<0||x>=L.w||y>=L.h||isStation(L,x,y)) return false;
+    var t=typeAt(L,x,y), open=t===PLAIN||t===HILL||t===HIGH||t===ESTATE||t===COMMON;
+    if(kind==='tube') return t===PLAIN||t===BRIDGE;
+    if(kind==='pump') return t===PLAIN;
+    if(kind==='landing') return open&&coastal(L,x,y);
+    return open||(kind==='pole'&&t===FOREST);
+  }
+  function cost(L,s){ var t=typeAt(L,s.x,s.y), g=GROUND[t];
+    if(s.kind==='tube') return t===BRIDGE?80:30; if(s.kind==='pump') return 200;
+    var c=s.kind==='pole'?(t===FOREST?45:20+10*g):s.kind==='repeater'?120+30*g:s.kind==='landing'?150+30*g:100+50*g;
+    return LANDX[t]?Math.round(c*LANDX[t]/5)*5:c; }
+  // Submarine cable between two cable stations: straight, under sea only. Delay grows with the square of its length.
+  function cable(L,a,b){
+    var dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy), n=Math.ceil(d*10), sea=0, deep=0;
+    if(d<2) return {bad:'short'}; if(d>CABLE_MAX+1e-9) return {bad:'long'};
+    for(var i=1;i<n;i++){ var cx=Math.round(a.x+dx*i/n), cy=Math.round(a.y+dy*i/n), t=L.t[cy*L.w+cx];
+      if(t===SEA||t===DEEP){ sea++; if(t===DEEP) deep++; continue; }
+      var near=Math.max(Math.abs(cx-a.x),Math.abs(cy-a.y))<=1||Math.max(Math.abs(cx-b.x),Math.abs(cy-b.y))<=1;
+      if(!near||t===MOUNT) return {bad:'land',bx:cx,by:cy}; }
+    if(!sea) return {bad:'short'};
+    return {type:'cable',lat:Math.ceil(d*d/2),cap:d<=6?6:d<=9?4:2,cost:Math.ceil(d*(40+40*deep/sea)/10-1e-9)*10,len:d,risk:[]};
+  }
+
+  function sight(L,a,b){
+    if(a.y>b.y||(a.y===b.y&&a.x>b.x)){ var s=a;a=b;b=s; }
+    var ha=ground(L,a)+1, hb=ground(L,b)+1, dx=b.x-a.x, dy=b.y-a.y, n=Math.ceil(Math.hypot(dx,dy)*10), risk=[];
+    for(var i=1;i<n;i++){ var u=i/n, cx=Math.round(a.x+dx*u), cy=Math.round(a.y+dy*u);
+      if((cx===a.x&&cy===a.y)||(cx===b.x&&cy===b.y)) continue;
+      var k=cy*L.w+cx, tt=L.t[k], lh=ha+(hb-ha)*u;
+      if(OBS[tt]>=lh-1e-6) return {ok:false,bx:cx,by:cy};
+      if(tt===SWAMP&&FOG_H>=lh){ var m=L.marsh[k]; if(risk.indexOf(m)<0) risk.push(m); } }
+    return {ok:true,risk:risk};
+  }
+  function link(L,a,b){
+    var dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy);
+    if(tubey(a)||tubey(b)){ var ok=function(q){ return tubey(q)||q.kind==='station'; };
+      if(!ok(a)||!ok(b)||Math.abs(dx)+Math.abs(dy)!==1) return null; return {type:'tube',lat:0,cap:10,risk:[],span:true}; }
+    if(wired(a)||wired(b)){
+      if(d>WIRE_R) return null;
+      var n=Math.ceil(d*10);
+      for(var i=1;i<n;i++){ var cx=Math.round(a.x+dx*i/n), cy=Math.round(a.y+dy*i/n);
+        if(L.t[cy*L.w+cx]===MOUNT) return {type:'blocked',bx:cx,by:cy}; }
+      return {type:'wire',lat:0,cap:6,risk:[],span:true};
+    }
+    if(d>OPT_R+ground(L,a)+ground(L,b)) return null;
+    var s=sight(L,a,b);
+    if(!s.ok) return {type:'blocked',bx:s.bx,by:s.by};
+    return {type:'optic',lat:0,cap:2,risk:s.risk};
+  }
+  function network(L,structs,cables){
+    var nodes=[L.start].concat(L.ends,structs), links=[], adj=nodes.map(function(){return [];}), i, j, off=1+L.ends.length;
+    for(i=0;i<nodes.length;i++) for(j=i+1;j<nodes.length;j++){
+      var l=link(L,nodes[i],nodes[j]); if(l&&l.type!=='blocked'){ l.i=i; l.j=j; adj[i].push([j,links.length,l]); adj[j].push([i,links.length,l]); links.push(l); } }
+    (cables||[]).forEach(function(c){ var ci=-1, cj=-1;
+      nodes.forEach(function(n,k){ if(n.kind==='landing'){ if(n.x===c.a.x&&n.y===c.a.y) ci=k; if(n.x===c.b.x&&n.y===c.b.y) cj=k; } });
+      if(ci<0||cj<0) return; var l=cable(L,nodes[ci],nodes[cj]); if(l.bad) return;
+      l.i=ci; l.j=cj; adj[ci].push([cj,links.length,l]); adj[cj].push([ci,links.length,l]); links.push(l); });
+    // Per-piece delay. A tube square is slower at a bend (two tubes meeting at a corner) or a junction (three or more).
+    var nlat=nodes.map(function(nd,k){ if(nd.kind==='station') return 0; var v=NLAT[nd.kind]||0;
+      if(nd.kind==='tube'){ var ds=[]; adj[k].forEach(function(e){ if(e[2].type==='tube') ds.push(nodes[e[0]].x!==nd.x?'h':'v'); });
+        if(ds.length>=3) v+=JUNC; else if(ds.length===2&&ds[0]!==ds[1]) v+=BEND; }
+      return v; });
+    return {nodes:nodes,links:links,adj:adj,nlat:nlat,off:off};
+  }
+  // Fastest free path from the start (node 0) to destination tgt. K = spans allowed between renewals (0 = no fading).
+  function best(net,K,block,ncap,ecap,tgt){
+    var nodes=net.nodes, n=nodes.length, K1=K?K+1:1, S=n*K1, dist=new Float64Array(S).fill(Infinity), prev=new Int32Array(S).fill(-1), pl=new Int32Array(S).fill(-1), done=new Uint8Array(S), s, b;
+    dist[0]=0;
+    for(;;){ b=-1; for(s=0;s<S;s++) if(!done[s]&&dist[s]<Infinity&&(b<0||dist[s]<dist[b])) b=s;
+      if(b<0) return null;
+      var u=(b/K1)|0, h=b%K1; if(u===tgt) break; done[b]=1;
+      var a=net.adj[u];
+      for(var k=0;k<a.length;k++){ var v=a[k][0], li=a[k][1], l=a[k][2];
+        if(v===0||ecap[li]<=0||(v>1&&ncap[v]<=0)||(block&&l.risk.length)) continue;
+        var h2=0; if(K&&l.span){ if(h+1>K) continue; h2=passive(nodes[v])?h+1:0; }
+        var nd=dist[b]+l.lat+net.nlat[v], t=v*K1+h2;
+        if(nd<dist[t]){ dist[t]=nd; prev[t]=b; pl[t]=li; } } }
+    var pn=[], pls=[], risky=false;
+    for(s=b;s>=0;s=prev[s]){ pn.unshift((s/K1)|0); if(pl[s]>=0){ pls.unshift(pl[s]); if(net.links[pl[s]].risk.length) risky=true; } }
+    return {nodes:pn,links:pls,lat:dist[b],risky:risky};
+  }
+  // Traffic takes the fastest free line, then the next fastest, until nothing is left.
+  function caps(net){ return {n:net.nodes.map(function(q){ return CAP[q.kind]||Infinity; }),e:net.links.map(function(l){ return l.cap; })}; }
+  // want: stop once this destination has its contract, so a shared trunk keeps capacity for the other towns.
+  function flows(net,K,block,tgt,ncap,ecap,want){
+    if(!ncap){ var cp=caps(net); ncap=cp.n; ecap=cp.e; } var out=[], got=0;
+    for(var it=0;it<16;it++){ if(want&&got>=want) break; var p=best(net,K,block,ncap,ecap,tgt); if(!p) break; var f=want?want-got:Infinity;
+      p.nodes.forEach(function(i){ if(i>1) f=Math.min(f,ncap[i]); }); p.links.forEach(function(li){ f=Math.min(f,ecap[li]); });
+      p.nodes.forEach(function(i){ if(i>1) ncap[i]-=f; }); p.links.forEach(function(li){ ecap[li]-=f; });
+      p.flow=f; p.dest=tgt; got+=f; out.push(p); }
+    out.ncap=ncap; out.ecap=ecap; return out;
+  }
+  // Every destination office must get the full contract. Traffic to each town is routed in turn over shared capacity.
+  function evaluate(L,structs,def,cables){
+    var net=network(L,structs,cables), K=fadeK(def), c=0, nE=L.ends.length, d;
+    function run(block){ var cp=caps(net), per=[]; for(d=1;d<=nE;d++) per.push(flows(net,K,block,d,cp.n,cp.e,nE>1?def.need:0)); return {per:per,ncap:cp.n,ecap:cp.e}; }
+    function rate(ps){ var r=0; ps.forEach(function(p){ if(p.lat<=def.limit) r+=p.flow; }); return r; }
+    var clear=run(false), misty=def.mist?run(true):clear, rates=[], rcs=[], rms=[], paths=[], fastest=0, faded=false;
+    for(d=0;d<nE;d++){ var pc=clear.per[d], rc=rate(pc), rm=def.mist?rate(misty.per[d]):rc;
+      rcs.push(rc); rms.push(rm); rates.push(Math.round((def.mist?(1-def.mist)*rc+def.mist*rm:rc)*10)/10); paths=paths.concat(pc);
+      if(!pc.length){ fastest=null; if(K>0&&best(net,0,false,caps(net).n,caps(net).e,d+1)) faded=true; } else if(fastest!==null) fastest=Math.max(fastest,pc[0].lat); }
+    net.links.forEach(function(l){ if(l.cost) c+=l.cost; });
+    structs.forEach(function(q){ c+=cost(L,q); });
+    var mn=function(a){ return Math.min.apply(null,a); };
+    return {net:net,paths:paths,res:{ncap:clear.ncap,ecap:clear.ecap},K:K,cost:c,rate:mn(rates),rates:rates,rateClear:mn(rcs),ratesClear:rcs,rateMist:mn(rms),fastest:fastest,faded:faded};
+  }
+  // Why can't another line be added? Search the leftover network, allowing full pieces and faded wire at a heavy penalty,
+  // then report which rules that best next route breaks.
+  function diagnose(net,K,ncap,ecap,tgt){
+    var nodes=net.nodes, n=nodes.length, K1=K?K+2:1, S=n*K1, P=1000, dist=new Float64Array(S).fill(Infinity), prev=new Int32Array(S).fill(-1), pl=new Int32Array(S).fill(-1), done=new Uint8Array(S), s, b;
+    dist[0]=0;
+    for(;;){ b=-1; for(s=0;s<S;s++) if(!done[s]&&dist[s]<Infinity&&(b<0||dist[s]<dist[b])) b=s;
+      if(b<0) return null; var u=(b/K1)|0, h=b%K1; if(u===tgt) break; done[b]=1;
+      net.adj[u].forEach(function(e){ var v=e[0], li=e[1], l=e[2]; if(v===0) return;
+        var w=l.lat+net.nlat[v], h2=0; if(ecap[li]<=0) w+=P; if(v>1&&ncap[v]<=0) w+=P;
+        if(K&&l.span){ var t=h+1; if(t>K&&h<=K) w+=P; h2=passive(nodes[v])?Math.min(t,K+1):0; }
+        var t2=v*K1+h2; if(dist[b]+w<dist[t2]){ dist[t2]=dist[b]+w; prev[t2]=b; pl[t2]=li; } }); }
+    var pn=[], pls=[]; for(s=b;s>=0;s=prev[s]){ pn.unshift((s/K1)|0); if(pl[s]>=0) pls.unshift(pl[s]); }
+    var r={nodes:pn,links:pls,lat:0,full:[],fade:-1,idle:false}, hh=0;
+    pls.forEach(function(li,k){ var l=net.links[li], v=pn[k+1]; r.lat+=l.lat+net.nlat[v];
+      if(ecap[li]<=0&&r.full.indexOf(v)<0&&v>1) r.full.push(v);
+      if(K&&l.span){ var t=hh+1; if(t>K&&r.fade<0) r.fade=v; hh=passive(nodes[v])?t:0; } else hh=0; });
+    pn.forEach(function(v){ if(v<2) return; if(ncap[v]<=0&&r.full.indexOf(v)<0) r.full.push(v); if(ncap[v]>=CAP[nodes[v].kind]) r.idle=true; });
+    return r;
+  }
+  function hpush(h,e){ var i=h.length; h.push(e); while(i>0){ var p=(i-1)>>1; if(h[p][0]<=h[i][0]) break; var t=h[p]; h[p]=h[i]; h[i]=t; i=p; } }
+  function hpop(h){ var top=h[0], e=h.pop(); if(h.length){ h[0]=e; var i=0, n=h.length; for(;;){ var l=2*i+1, r=l+1, m=i; if(l<n&&h[l][0]<h[m][0]) m=l; if(r<n&&h[r][0]<h[m][0]) m=r; if(m===i) break; var t=h[m]; h[m]=h[i]; h[i]=t; i=m; } } return top; }
+  // Cheapest network found that meets the contract. A search, not a proof: a player may beat it.
+  function solve(L,def){
+    var kinds=tools(def).filter(function(k){ return k!=='cable'; }), C=[L.start].concat(L.ends), O=C.length, nE=L.ends.length, tgt=1, x, y, i, j;
+    for(y=0;y<L.h;y++)for(x=0;x<L.w;x++) kinds.forEach(function(k){ if(canBuild(L,x,y,k)) C.push({x:x,y:y,kind:k}); });
+    var n=C.length, adj=C.map(function(){return [];}), cc=C.map(function(c,k){ return k>=O?cost(L,c):0; }), K=fadeK(def), K1=K?K+1:1, D=def.era===4?5:1;
+    for(i=0;i<n;i++) for(j=i+1;j<n;j++){ var a=C[i], b=C[j], dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy;
+      if(d2===0) continue; var l;
+      if(a.kind==='landing'&&b.kind==='landing'){ l=cable(L,a,b); if(!l.bad){ l.id=-(i*n+j)-1; l.a=a; l.b=b; adj[i].push([j,l]); adj[j].push([i,l]); } }
+      if((tubey(a)||tubey(b))&&d2!==1) continue;
+      if(d2>70||((wired(a)||wired(b))&&d2>5.3)) continue;
+      l=link(L,a,b); if(l&&l.type!=='blocked'){ l.id=i*n+j; adj[i].push([j,l]); adj[j].push([i,l]); } }
+    // State: piece, wire spans since renewal, and (in the city) the direction the capsule is travelling, so bends can be costed.
+    function dirOf(p,q){ var dx=q.x-p.x, dy=q.y-p.y; return dx===1?0:dx===-1?1:dy===1?2:3; }
+    function search(st,lam,opt){
+      var S=n*K1*D, dist=new Float64Array(S).fill(Infinity), g=new Float64Array(S), prev=new Int32Array(S).fill(-1), pl=new Array(S), done=new Uint8Array(S), s0=D>1?4:0, heap=[[0,s0]]; dist[s0]=0;
+      while(heap.length){ var b=hpop(heap)[1]; if(done[b]) continue; done[b]=1; var dir=b%D, r0=(b/D)|0, u=(r0/K1)|0, h=r0%K1;
+        if(u===tgt){ var idx=[], ls=[], c=0, s;
+          for(s=b;s>=0;s=prev[s]){ var v0=(((s/D)|0)/K1)|0; idx.unshift(v0); if(pl[s]){ ls.unshift(pl[s]); if(pl[s].cost&&st.eres[pl[s].id]===undefined) c+=pl[s].cost; } if(v0>=O&&st.nres[v0]===undefined) c+=cc[v0]; }
+          return {idx:idx,ls:ls,lat:g[b],cost:c}; }
+        var a=adj[u];
+        for(var k=0;k<a.length;k++){ var v=a[k][0], l=a[k][1]; if(v===0) continue;
+          if(opt.minCap&&(l.cap<opt.minCap||(v>=O&&CAP[C[v].kind]<opt.minCap))) continue;
+          if(v>=O){ var ck=C[v].y*L.w+C[v].x;
+            if(st.cell[ck]!==undefined&&st.cell[ck]!==v) continue; if(st.nres[v]!==undefined&&st.nres[v]<=0) continue;
+            if(D>1&&st.near&&st.near[ck]&&st.cell[ck]===undefined) continue; }
+          if((st.eres[l.id]!==undefined&&st.eres[l.id]<=0)||(opt.block&&l.risk.length)) continue;
+          var h2=0; if(K&&l.span){ if(h+1>K) continue; h2=passive(C[v])?h+1:0; }
+          var nd=0, ex=0; if(D>1){ nd=dirOf(C[u],C[v]); if(u>=O&&C[u].kind==='tube'&&dir<4&&nd!==dir) ex=BEND; }
+          var step=l.lat+(v>=O?NLAT[C[v].kind]:0)+ex;
+          var w=dist[b]+(v>=O&&st.nres[v]===undefined?cc[v]:0)+(l.cost&&st.eres[l.id]===undefined?l.cost:0)+lam*step+1e-4, t=(v*K1+h2)*D+nd;
+          if(w<dist[t]){ dist[t]=w; g[t]=g[b]+step; prev[t]=b; pl[t]=l; hpush(heap,[w,t]); } } }
+      return null;
+    }
+    var fastLat=0; for(tgt=1;tgt<=nE;tgt++){ var fs=search({cell:{},nres:{},eres:{}},1e5,{}); if(!fs){ fastLat=null; break; } fastLat=Math.max(fastLat,fs.lat); }
+    var fast=fastLat===null?null:{lat:fastLat}, bestSol=null, variants=[{}];
+    (def.era===3?[4,6]:def.era===2?[6]:[]).forEach(function(m){ variants.push({minCap:m}); });
+    if(def.mist) variants.slice().forEach(function(o){ variants.push({block:true,minCap:o.minCap}); });
+    if(fast&&fast.lat<=def.limit) [false,true].forEach(function(rev){ if(rev&&nE<2) return; variants.forEach(function(opt){
+      var st={cell:{},nres:{},eres:{}}, structs=[], cables=[], lams=[0,1,3,8,25,80], order=[], ok=true;
+      for(var q0=1;q0<=nE;q0++) order.push(q0); if(rev) order.reverse();
+      var got={}; order.forEach(function(dt){ if(!ok) return; tgt=dt; var met=false;
+        for(var it=0;it<10;it++){ var p=null;
+          for(var q=0;q<lams.length;q++){ var c=search(st,lams[q],opt); if(!c) break; if(c.lat<=def.limit){ if(!p||c.cost<p.cost) p=c; if(q===0) break; } }
+          if(!p) break; var f=Infinity;
+          p.idx.forEach(function(v){ if(v>=O) f=Math.min(f,st.nres[v]===undefined?CAP[C[v].kind]:st.nres[v]); });
+          p.ls.forEach(function(l){ f=Math.min(f,st.eres[l.id]===undefined?l.cap:st.eres[l.id]); });
+          if(nE>1){ f=Math.min(f,def.need-(got[dt]||0)); got[dt]=(got[dt]||0)+f; }
+          p.idx.forEach(function(v){ if(v<O) return; if(st.nres[v]===undefined){ st.nres[v]=CAP[C[v].kind]; st.cell[C[v].y*L.w+C[v].x]=v; structs.push(C[v]);
+            if(D>1){ st.near=st.near||{}; [[1,0],[-1,0],[0,1],[0,-1]].forEach(function(o){ st.near[(C[v].y+o[1])*L.w+C[v].x+o[0]]=1; }); } } st.nres[v]-=f; });
+          p.ls.forEach(function(l){ if(st.eres[l.id]===undefined){ st.eres[l.id]=l.cap; if(l.cost) cables.push({a:{x:l.a.x,y:l.a.y},b:{x:l.b.x,y:l.b.y}}); } st.eres[l.id]-=f; });
+          var evr=evaluate(L,structs,def,cables); if(order.slice(0,order.indexOf(dt)+1).every(function(z){ return evr.rates[z-1]>=def.need; })){ met=true; break; } }
+        if(!met) ok=false; });
+      if(ok&&evaluate(L,structs,def,cables).rate>=def.need){ var r, t;
+        for(r=cables.length-1;r>=0;r--){ t=cables.slice(); t.splice(r,1); if(evaluate(L,structs,def,t).rate>=def.need) cables=t; }
+        for(r=structs.length-1;r>=0;r--){ t=structs.slice(); t.splice(r,1); if(evaluate(L,t,def,cables).rate>=def.need) structs=t; }
+        cables=cables.filter(function(c){ return structs.some(function(q){ return q.x===c.a.x&&q.y===c.a.y; })&&structs.some(function(q){ return q.x===c.b.x&&q.y===c.b.y; }); });
+        var tot=evaluate(L,structs,def,cables).cost;
+        if(!bestSol||tot<bestSol.cost) bestSol={cost:tot,structs:structs,cables:cables}; }
+    }); });
+    return {cost:bestSol?bestSol.cost:Infinity,structs:bestSol?bestSol.structs:[],cables:bestSol?bestSol.cables:[],fastLat:fast?fast.lat:null};
+  }
+  var MORSE={A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',
+    N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..'};
+  // Game semaphore: bar level A-I, rising J-R, falling S-Z; left arm counts threes, right arm ones (up, out, down).
+  function semSegs(i,R,A){
+    var reg=Math.floor(i/9), l=Math.floor((i%9)/3), r=i%3, ang=[0,-Math.PI/4,Math.PI/4][reg];
+    var u=[Math.cos(ang),Math.sin(ang)], nn=[u[1],-u[0]];
+    function dir(p,side){ return p===0?nn:p===2?[-nn[0],-nn[1]]:[u[0]*side,u[1]*side]; }
+    var P=[u[0]*R,u[1]*R], Q=[-u[0]*R,-u[1]*R], dr=dir(r,1), dl=dir(l,-1);
+    return {bar:[Q,P], right:[P,[P[0]+dr[0]*A,P[1]+dr[1]*A]], left:[Q,[Q[0]+dl[0]*A,Q[1]+dl[1]*A]]};
+  }
+  return {ESTATE:ESTATE,COMMON:COMMON,LANDX:LANDX,PLAIN:PLAIN,HILL:HILL,HIGH:HIGH,MOUNT:MOUNT,FOREST:FOREST,RIVER:RIVER,SWAMP:SWAMP,SEA:SEA,DEEP:DEEP,BUILD:BUILD,BRIDGE:BRIDGE,TUBE_K:TUBE_K,BEND:BEND,JUNC:JUNC,passive:passive,fadeK:fadeK,GROUND:GROUND,FADE:FADE,CABLE_MAX:CABLE_MAX,cable:cable,
+    OPT_R:OPT_R,WIRE_R:WIRE_R,parse:parse,typeAt:typeAt,ground:ground,canBuild:canBuild,cost:cost,link:link,tools:tools,
+    evaluate:evaluate,diagnose:diagnose,solve:solve,MORSE:MORSE,semSegs:semSegs,isStation:isStation};
+})();
+
+var LEVELS=[
+ {"name":"First Signal","era":1,"from":"Lille","to":"Arras","need":2,"limit":75,"budgetPct":1.5,"mist":0,"fade":false,"wpm":10,"decode":0,"words":["TEA","ANT","EAT","TEN","NET"],"brief":"Raise semaphore towers so that each one can see the next. Drag on the map to place a tower, tap a tower to remove it.","intro":["contract","tower"],"par":200,"map":["................","..ff........ff..",".fff.........f..","................",".............B..","..A.............","................","....f...........","...fff.....ff...","................"]},
+ {"name":"The Ridge","era":1,"from":"Arras","to":"Amiens","need":2,"limit":50,"budgetPct":1.3,"mist":0,"fade":false,"wpm":10,"decode":0,"words":["STAR","REST","EARN","NEST","RATE"],"brief":"A ridge stands between the towns. The cheap way and the fast way are not the same.","intro":["hill"],"par":250,"map":[".......hh.......",".......hh.......","......hhh.......","......hh........",".A....hhh.....B.","......hhh.......",".......hh.......",".......hhh......","......hhh.......","......hh........"]},
+ {"name":"Wood and Water","era":1,"from":"Amiens","to":"Senlis","need":2,"limit":75,"budgetPct":1.25,"mist":0,"fade":false,"wpm":10,"decode":0,"words":["IRON","RAIN","STONE","TIDE","LAND"],"brief":"Broken country: a river too wide for a plain tower, and woods on both banks.","intro":["forest","river"],"par":350,"map":["..........~~......","...ff.....~~..h...","...fff...~~~......",".A..ff...~~..ff...",".....hh.~~~..fff..","........~~....ff..","...h....~~~.......",".......~~~~...hh..","..ff...~~~......B.","..fff.~~~~........","......~~~........."]},
+ {"name":"Toll Roads","era":1,"from":"Amiens","to":"Beauvais","need":2,"limit":100,"budgetPct":1.2,"mist":0,"fade":false,"wpm":10,"decode":0,"words":["TOLL","ESTATE","RENT","LORD","MANOR"],"brief":"The Duke’s estate lies across the direct line, and he charges for every tower. The common land is cheap but out of the way.","intro":["land"],"par":300,"map":["...,,,,,,,,,,,,...",".ff,,,,,,,,,,,,...",".ff.....ff........",".....$$$$$$$$.....",".....$$$$$$$$.....",".A...$$$$$$$$.h.B.",".....$$$$$$$$.....",".....$$$$$$$$.....","........ff.....ff.","...,,,,,,,,,,,,ff.","...,,,,,,,,,,,,..."]},
+ {"name":"Marsh Mist","era":1,"from":"Senlis","to":"Meaux","need":2,"limit":65,"budgetPct":1.3,"mist":0.4,"fade":false,"wpm":10,"decode":0,"words":["MIST","HOME","MARSH","STORM","NORTH"],"brief":"The straight road crosses the marsh. One low line across it will not carry the contract on its own.","intro":["mist"],"par":300,"map":["................","................","....sssss.......","...sss.sss......",".A.ss..ss....B..","...sss.ss.......","....sssss.......","...h.sss.h......","................","................"]},
+ {"name":"The Pass","era":1,"from":"Meaux","to":"Reims","need":2,"limit":50,"budgetPct":1.2,"mist":0,"fade":false,"wpm":10,"decode":0,"words":["COAST","ROUTE","MARCH","SOUTH","COURT"],"brief":"One gap in the mountains, and it is full of trees.","intro":["mountain","tall"],"par":400,"map":["......MMM.......","......MMM..ff...","......MMMM......","......MMM.......",".A.H..fff..H..B.","......MMM.......",".....MMMM.......","..h..MMM........",".....MMM....h...","......MM........"]},
+ {"name":"Two Towns","era":1,"from":"Reims","to":"Laon","need":1,"limit":75,"budgetPct":1.2,"mist":0,"fade":false,"wpm":10,"decode":0,"words":["NEWS","ORDERS","COURIER","DECREE","TROOPS"],"brief":"Laon and Soissons both want the news, one message a minute each. Mountains stand between them.","intro":["branch"],"par":450,"map":[".........$$$........","....fff..$$$........","....fff......h....B.","....fff.............","..............MMM...","..............MMM...",".A.......hh...MMM...","..............MMM...",".....fff............",".....fff.....h......",".....fff.$$$......C.",".........$$$........"],"also":["Soissons"]},
+ {"name":"Twin Lines","era":1,"from":"Reims","to":"Verdun","need":4,"limit":75,"budgetPct":1.2,"mist":0,"fade":false,"wpm":10,"decode":0,"words":["FLAG","PORT","SIGNAL","FROST","GRAPE"],"brief":"The ministry wants twice the traffic. One line of towers cannot carry it.","intro":["parallel"],"par":700,"map":["....................","..ff......hh.....ff.","..ff.....hhh..ff....","......h.......ff....",".A....h.....h.....B.","......ff............","..h...ff.....hh.....",".........ff.........","....hh...ff...h..ff.",".................ff.","...................."]},
+ {"name":"The Long Line","era":1,"from":"Verdun","to":"Metz","need":4,"limit":125,"budgetPct":1.15,"mist":0.4,"fade":false,"wpm":10,"decode":0,"words":["BRIDGE","VICTORY","HARBOUR","KINGDOM","WINTER"],"brief":"Two passes through the mountains, a marsh beyond them, and a double contract.","intro":[],"par":1050,"map":[".....MM.....ff......",".A...MM....fff....h.",".....MM..ss.ff......","..h..M..ssss...MM...",".....f..ssss...MMM..","....ff.h.ss.....MM..",".....M...s..........",".....MM......h....B.","..H..MM..hh.........",".........h....ff....",".....MM......fff....",".....MMM......ff...."]},
+ {"name":"The Wire","era":2,"from":"Baltimore","to":"Laurel","need":6,"limit":10,"budgetPct":1.25,"mist":0,"fade":false,"wpm":6,"decode":0,"words":["TEN","SENT","NOTE","TIME","MOST"],"brief":"The electric telegraph. Wire is cheap and quick, and triples the traffic of a tower line.","intro":["pole","morse"],"par":140,"map":["ffffffffffffffffff","ff....fffffff...ff","f..A..ffffff..B..f","ff....fffff.....ff","fff..ffffff..fffff","fff..fffffff.fffff","fff...ffffff..ffff","ffff...........fff","fffff.........ffff","ffffffff..ffffffff","ffffffffffffffffff"]},
+ {"name":"Two Systems","era":2,"from":"Laurel","to":"Bladensburg","need":4,"limit":60,"budgetPct":1.2,"mist":0,"fade":false,"wpm":8,"decode":0,"words":["WIRE","DAWN","TRAIN","STORM","GUARD"],"brief":"Wire cannot span this river. Towers can see across it, two messages a minute at a time.","intro":["handoff"],"par":520,"map":[".......~~~........",".ff....~~~...ff...",".fff...~~~~..fff..",".......~~~~.......",".A....f~~~~f....B.","......f~~~ff......",".......~~~f.......","...h...~~~........",".......~~~...ff...","..ff..~~~~........","......~~~........."]},
+ {"name":"County Lines","era":2,"from":"Annapolis","to":"Easton","need":2,"limit":15,"budgetPct":1.2,"mist":0,"fade":false,"wpm":9,"decode":0,"words":["COUNTY","FARM","HARVEST","PRICE","GRAIN"],"brief":"Three county towns, two messages a minute each. The best farmland belongs to the big estates.","intro":["towns3"],"par":240,"map":["......ffff.,,,,..ff.....","......ffff.,,,,..ff...B.","......ffff.,,,,.........","..$$..ffff..............","..$$..ffff..$$$$........","............$$$$..MM....","............$$$$..MM....",".A..........$$$$..MM..C.","............$$$$..MM....","......ffff..$$$$........","......ffff..............","......ffff.,,,,.........","......ffff.,,,,..ff...D.","......ffff.,,,,..ff....."],"also":["Dover","Salisbury"]},
+ {"name":"Long Haul","era":2,"from":"Bladensburg","to":"Frederick","need":6,"limit":20,"budgetPct":1.2,"mist":0,"fade":true,"wpm":10,"decode":0,"words":["CABLE","FLASH","PILOT","RELAY","SPARK"],"brief":"Twenty miles of wire. The signal will not make it in one piece.","intro":["fade","repeater"],"par":320,"map":["ffff....MMM.....ffff....","fff.....MMM......fff....",".A......MM...ff.......f.","........MM...fff......ff","....ff..M.....ff........","...fff.......MMM........","....ff..ff...MMMM.....B.","........fff...MMM.......","..MM.....ff....MM..ff...","..MMM..............fff..","...MM.....ss.......ff...","..........sss..........."]},
+ {"name":"Fenland","era":2,"from":"Frederick","to":"Annapolis","need":4,"limit":80,"budgetPct":1.15,"mist":0.25,"fade":true,"wpm":12,"decode":0,"words":["MARSH","BRIDGE","FENCE","WATER","CROSS"],"brief":"Fen from edge to edge, and mist most mornings.","intro":["marshwire"],"par":860,"map":["......sssss.....MM..",".A....sssss.....MM..",".....sssssss....MM..","....sss..ssss..MMM..","..h.ss.h..sssh......","....sss..ssss.......","....sssssss.........",".....sssss....ff....",".....sss.....fff..B.","..ff.ssss....ff.....",".fff..ssss~~~~~.....",".......sss~~~~......"]},
+ {"name":"Trunk Line","era":2,"from":"Annapolis","to":"Richmond","need":12,"limit":20,"budgetPct":1.15,"mist":0,"fade":true,"wpm":14,"decode":10,"words":["EXPRESS","MARKET","TRAFFIC","COTTON","FREIGHT"],"brief":"A trunk route: twelve messages a minute. The river narrows in two places only.","intro":["decode"],"par":640,"map":[".....ff....~~...........",".A...fff...~~....hh.....","......ff...~~...........","...........~....ff......","....hh.....~....fff.....","...........~~....ff.....","..ff.......~~...........","..fff......~~~....MM....","...ff.......~~....MMM...","............~~.....MM...","....MM......~.........B.","....MMM.....~...ff......",".....M......~~..fff.....","............~~...ff....."]},
+ {"name":"Winter Express","era":2,"from":"Richmond","to":"Washington","need":4,"limit":60,"budgetPct":1.12,"mist":0.5,"fade":true,"wpm":16,"decode":8,"words":["VOLTAGE","QUICKLY","HORIZON","JUNCTION","EXPRESS"],"brief":"A wide river, a marsh beyond it and very little money.","intro":[],"par":520,"map":["....ff....~~....MM..",".A..fff...~~...MMM..","....ff...~~~...MM...",".........~~.........","..h......~~..ss..h..","........~~~.ssss....","...MM...~~..sss.....","..MMM..~~~...s......","..MM...~~.......ff..",".......~~....H..ff..","....f..~~~........B.","...ff...~~.........."]},
+ {"name":"Grand Junction","era":2,"from":"Washington","to":"Philadelphia","need":12,"limit":20,"budgetPct":1.1,"mist":0.4,"fade":true,"wpm":18,"decode":6,"words":["TELEGRAPH","JUNCTION","EXCHANGE","DISPATCH","OPERATOR"],"brief":"The busiest line on the seaboard. The river narrows in two places, and there is no slack in the budget.","intro":[],"par":665,"map":["..........~~......MM......",".A....ff..~~......MMM.....","......fff.~~...ss..MM.....","..hh...ff.~...ssss........","..........~...sss....ff...","....MM....~~...s.....fff..","....MMM...~~..........ff..",".....MM...~~~......hh.....","..........~~~.............","..ff.......~~....MM.......","..fff......~~....MMM....B.","...ff......~......MM......","...........~..ff..........",".....hh....~~.fff.....ff..","...........~~..ff.....ff..","...........~~............."]},
+ {"name":"The Narrow Sea","era":3,"from":"Dover","to":"Calais","need":6,"limit":60,"budgetPct":1.3,"mist":0,"fade":true,"wpm":16,"decode":7,"words":["CABLE","COAST","SHIP","TIDE","WAVE"],"brief":"Twenty miles of open water. Wire cannot span it, so the line goes under.","intro":["sea","landing","cable"],"par":640,"map":[".......wwwwwwww.......","..fff..wwwwwww........","..fff...wwwwww...hh...","........wwwwww........","........wwwwww........",".A.......wwwww........",".........wwwww......B.","........wwwwww........","....h...wwwwww..fff...","........wwwwww..fff...",".......wwwwwwww.......",".......wwwwwwww......."]},
+ {"name":"The Law of Squares","era":3,"from":"Holyhead","to":"Howth","need":6,"limit":80,"budgetPct":1.25,"mist":0,"fade":true,"wpm":18,"decode":7,"words":["ISLAND","SQUARE","DELAY","LENGTH","SIGNAL"],"brief":"One long cable would reach, slowly. There is a rock in mid-channel.","intro":["squares"],"par":1120,"map":[".....wwwwwwwwwwwwww.....",".ff..www.wwwwwwwww......",".ff...wwwwwwwwwwww..h...",".ff...wwwwwwwwwwww......","......wwwwwwwwwwww......","......wwwww..wwwww......",".A....wwwww..wwwww....B.","......wwwww..wwwww......","......wwwwwwwwwwww......","......wwwwwwwwwwww..fff.","...h..wwwwwwwwwwww..fff.","......wwwwwwwww.www.fff.",".....wwwwwwwwwwwwww....."]},
+ {"name":"The Trench","era":3,"from":"Wexford","to":"Fishguard","need":6,"limit":85,"budgetPct":1.2,"mist":0,"fade":true,"wpm":18,"decode":6,"words":["TRENCH","DEPTH","FATHOM","ANCHOR","SOUND"],"brief":"A deep trench runs up the channel. It stops short of the northern shallows.","intro":["deep"],"par":1220,"map":[".....wwwwwwwwwwwwww.....","......wwwww..wwwww......",".fff..wwwwwwwwwwww......",".fff..wwwwwwwwwwww..MMM.",".fff..wwwwWWWWwwww..MMM.","......wwwwWWWWwwww..MMM.","....h.wwwwWWWWwwww......","......wwwwWWWWwwww......",".A....ww.wWWWWw.ww......","......wwwwWWWWwwww....B.","..MM..wwwwWWWWwwww.h....","..MM..wwwwWWWWwwww......","..MM..wwwwWWWWwwww......",".....wwwwwWWWWwwwww....."]},
+ {"name":"Island Mail","era":3,"from":"Penzance","to":"Hugh Town","need":3,"limit":90,"budgetPct":1.2,"mist":0,"fade":true,"wpm":18,"decode":7,"words":["ISLES","PACKET","HARBOUR","STORM","PILOT"],"brief":"The islands want three messages a minute each. A cable station carries six.","intro":["islands"],"par":1570,"map":["......wwWWwwwwwwwwwwwwww",".ff...wwWWwww.....ffwwww",".ff...wwWWwww.....B.wwww",".ff...wwwwwww.......wwww","......wwwwWWW.......wwww","......wwwwWWWWwwwwwwwwww","......wwwwWWWWwwwwwwwwww",".A....wwwwWWWWwwwwwwwwww","......wwwwWWWWwwwwwwwwww","......wwwwWWW.....wwwwww","MMM...wwwwwww..h..wwwwww","MMM...wwwwwww....Cwwwwww","MMM...wwwwwwwf....wwwwww","......wwwwwwwwwwwwwwwwww"],"also":["Tresco"]},
+ {"name":"Island Chain","era":3,"from":"Portpatrick","to":"Donaghadee","need":12,"limit":90,"budgetPct":1.15,"mist":0,"fade":true,"wpm":20,"decode":6,"words":["CHAIN","ISLAND","DOUBLE","TRAFFIC","HARBOUR"],"brief":"Twelve a minute across a scatter of islands. One cable route will not carry it.","intro":[],"par":2580,"map":[".....wwwwwwwwwwwwwwww.....",".fff..wwwwwwwwwwwwww......",".fff..wwww.wwwwwwwww...MM.",".fff..wwwwwwwww.wwww...MM.","....h.wwwwwwwwwwwwww...MM.","......wwwwwwwwwwwwww......",".A...wwwwww.hhwwwwww......","......wwwwwwhh.wwwwww...B.","......wwwwwwwwwwwwww......",".MM...wwwwwwwwwwwwww.h....",".MM...www.wwwwwwwwww..fff.",".MM...wwwwwwww..wwww..fff.","......wwwwwwwwwwwwww..fff.",".....wwwwwwwwwwwwwwww....."]},
+ {"name":"The Channel","era":3,"from":"Brighton","to":"Dieppe","need":12,"limit":80,"budgetPct":1.12,"mist":0,"fade":true,"wpm":20,"decode":5,"words":["CHANNEL","EXPRESS","COMMERCE","CAPITAL","FOREIGN"],"brief":"A trunk contract across the Channel, with mountains behind both coasts.","intro":[],"par":2500,"map":[".........wwwwWWwwww.........",".........wwwwWWwww.....fff..","..h.MMM...wwwwWwww.....fff..","....MMM.h.www.wwww.....fff..","....MMM...wwwwWwww..........","....MMM...wwwWWww...........","..........wwwWWww.........B.","...........wwWWwww..MMM.....",".A.........wwWWwww..MMM.....","..........wwwWWwww..MMM.....",".....fff..wwwWWwww..MMM.....",".....fff..wwwWwwww..........","..ss.fff..wwww.www.h.fff....","..ss......wwwWwwww...fff....","..ss.....wwwwWWwwww..fff....",".........wwwwWWwwww........."]},
+ {"name":"The Atlantic","era":3,"from":"Valentia","to":"Hearts Content","need":6,"limit":115,"budgetPct":1.1,"mist":0,"fade":true,"wpm":22,"decode":5,"words":["ATLANTIC","STEAMSHIP","OCEAN","CONTINENT","VICTORIA"],"brief":"Two thousand miles in the real thing. Here, a shallow ridge with a few rocks along it and deep ocean on either side.","intro":[],"par":1870,"map":["....wwWWWWWWWWWWWWWWWWww....","....wwWWWWWWWWWWWWWWWWww....",".ff.wwWWWWWWWWWWWWWWWWww....",".ff.wwWWWWWWWWWWW.WWWWww....",".ff.wwWWWWwwwWWWWWWWWWww....","....wwWWWwwwwwWWWWWWWWww.h..","....wwWWw.wwwwwWWWWWWWww....","....wwwwwwWWWw..WWWWwwww....",".A..wwwwwWWWWWwwwWWwwwww..B.","..h.wwwwWWWWWWWwwwwwwwww....","....wwWWWWWWWWWWwww.WWww....","....wwWWWWWWWWWWWwwWWWww.ff.","MM..wwWWWWW.WWWWWWWWWWww.ff.","MM..wwWWWWWWWWWWWWWWWWww.ff.","MM..wwWWWWWWWWWWWWWWWWww....","....wwWWWWWWWWWWWWWWWWww....","....wwWWWWWWWWWWWWWWWWww...."]},
+ {"name":"Under the Streets","era":4,"from":"Lothbury","to":"Stock Exchange","need":10,"limit":65,"budgetPct":1.4,"mist":0,"fade":false,"wpm":18,"decode":6,"words":["PRICE","SHARES","CONSOLS","BUY","SELL"],"brief":"London, 1853. The first tube carried telegrams from the telegraph office to the Stock Exchange.","intro":["city","tube","bend"],"par":630,"map":["................","A###.###.###.##.",".###.###.###.##.","................",".###.###.###.##.",".###.###.###.##.","................",".###.###.###.##.",".###.###.###.##B","................"]},
+ {"name":"Pressure","era":4,"from":"Telegraph St","to":"Charing Cross","need":10,"limit":70,"budgetPct":1.3,"mist":0,"fade":true,"wpm":18,"decode":6,"words":["URGENT","REPLY","ARRIVE","STRAND","CAB"],"brief":"Across the City to the West End: further than one charge of air will carry a capsule.","intro":["pump"],"par":1090,"map":["#.###.###.####.###.#",".A..................","#.###.###.########.#","#.###.###.########.#","....................","#.###.########.###.#","#.###.########.###.#","....................","#.###.###.####.###.#","#.###.###.####.###.#","..................B.","#.###.###.####.###.#"]},
+ {"name":"Across the River","era":4,"from":"Strand","to":"Southwark","need":10,"limit":75,"budgetPct":1.25,"mist":0,"fade":true,"wpm":20,"decode":6,"words":["THAMES","BRIDGE","WHARF","CARGO","DOCKS"],"brief":"Two bridges cross the river. Neither is on the straight line.","intro":["bridge"],"par":1160,"map":["#.###.##.#~~#.##.###.#","#.###.##.#~~#.##.###.#","..........==..........","#.###.##.#~~#.##.###.#","#.###.##.#~~#.##.###.#",".A........~~........B.","#.###.##.#~~#.##.###.#","#.###.##.#~~#.##.###.#","#.###.##.#~~#.##.###.#","..........==..........","#.###.##.#~~#.##.###.#","#.###.##.#~~#.##.###.#"]},
+ {"name":"Rush Hour","era":4,"from":"Central Office","to":"Lombard St","need":20,"limit":70,"budgetPct":1.2,"mist":0,"fade":true,"wpm":20,"decode":5,"words":["MARKET","CLOSING","PANIC","RALLY","BANK"],"brief":"Twenty telegrams a minute at the close of the market. One tube carries ten.","intro":["tubes2"],"par":2060,"map":["#.##.##.###.##.###.##.","......................","#.##.######.##.###.##.","#.##.##.###.##.###.##.","......................","#.##.##.######.###.##.","#A##.##.######.###.##B","#.##.##.######.###.##.","......................","#.##.##.###.##.###.##.","#.##.##.###.######.##.","......................","#.##.##.###.##.###.##."]},
+ {"name":"Paris Network","era":4,"from":"Rue de Grenelle","to":"La Bourse","need":20,"limit":85,"budgetPct":1.15,"mist":0,"fade":true,"wpm":22,"decode":5,"words":["PNEUMATIQUE","SEINE","BOURSE","PETIT","BLEU"],"brief":"Paris, 1866. The Seine and its island stand between the ministries and the Bourse.","intro":[],"par":3040,"map":["#.##.###.###.###.###.###.#","..........................","#.##.###.###.#######.###.#","....A.....................","#.##.###.###.###.###.###.#","~~~~=~~~~~~~=~~~~~~~=~~~~~","~~~~=~~~~~~~=~~~~~~~=~~~~~","~~~~=~~~~........~~~=~~~~~","~~~~=~~~~~~~=~~~~~~~=~~~~~","~~~~=~~~~~~~=~~~~~~~=~~~~~","#.##.###.###.###.###.###.#","..........................","#.##.#######.###.###.###B#","..........................","#.##.###.###.###.###.###.#"]},
+ {"name":"Rohrpost","era":4,"from":"Haupttelegraph","to":"Potsdamer Platz","need":30,"limit":95,"budgetPct":1.12,"mist":0,"fade":true,"wpm":24,"decode":4,"words":["ROHRPOST","SPREE","KAISER","DEPESCHE","EILIG"],"brief":"Berlin, 1876. Thirty telegrams a minute across the Spree, with the Tiergarten in the way.","intro":[],"par":4420,"map":["#.###.###.##.~~.###.###.##.#","#.###.###.##.~~.###.###.##.#",".............==.............","#.#######.##.~~.###.###.##.#","#.#######.##.~~.###.###.##.#",".............~~.............","#.###.###.##.~~.###.###.##.#",".A...........==...........B.","#.###.######.~~.fffffff.##.#","#.###.######.~~.fffffff.##.#",".............~~.fffffff.....","#.###.###.##.~~.fffffff.##.#",".............==.............","#.###.###.##.~~.#######.##.#","#.###.###.##.~~.#######.##.#",".............~~............."]}
+];
+</script>
+
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s);};
+var MODES=['engineer','operator','expert'], MODE_NAME={engineer:'Engineer',operator:'Operator',expert:'Expert'};
+var ERAS=[{n:1,t:'The Optical Line',s:'FROM 1794 · SEMAPHORE'},{n:2,t:'The Electric Wire',s:'FROM 1844 · MORSE'},{n:3,t:'The Ocean Cable',s:'FROM 1858 · SUBMARINE CABLE'},{n:4,t:'The Pneumatic City',s:'FROM 1853 · TUBES UNDER THE STREETS'}];
+var TNAME=['Open ground','Hill','Tall hill','Mountain','Forest','River','Marsh','Sea','Deep sea','Building','Bridge','Estate','Common land'];
+var WHYNOT=['','','','Too steep to build on','Trees in the way: only wire poles fit here','Cannot build in water','Ground too soft to build on','Cannot build at sea','Cannot build at sea','Buildings in the way: tubes run under the streets','A pump cannot stand on a bridge','Private estate: tubes cannot run here','Common land: tubes cannot run here'];
+var KNAME={tower:'Tower',pole:'Wire pole',repeater:'Repeater',landing:'Cable station',cable:'Cable',tube:'Tube',pump:'Pumping station'};
+var INTRO={
+  contract:['#f2b545','The contract','Every line has three targets: carry enough messages a minute, deliver each one inside the latency limit, and stay within budget. Latency is the time a message takes: every piece it passes through adds the delay shown on that piece\u2019s card. The three meters at the top update as you build, and Send unlocks when all three are met.'],
+  tower:['#efe6cf','Semaphore tower','Sees 4 squares across open ground. Every tower a message passes through adds 25 s: its operator has to read the signal and send it on. A line of towers carries 2 messages a minute. $100.'],
+  hill:['#cfc27f','Hills','A hill hides everything behind it from a tower on the plain. A tower on the hill sees over it and 1 square further, for $150. Seeing further means fewer towers, and fewer towers means a faster line.'],
+  forest:['#3d6c45','Forest','Trees stand taller than a tower on the plain and block its view. A line from hilltop to hilltop passes over them. Towers cannot be built among trees.'],
+  river:['#6ea6c4','Water','Nothing can be built in water. It never blocks a sight line, so the problem is reach: each level of height, at either end of a line, adds 1 square.'],
+  mist:['#c9d6d8','Marsh mist','Mist hides low sight lines over marsh for part of every hour. Messages on those lines wait, so the line carries less: the meter shows the average. A line between two hilltops passes above the mist.'],
+  mountain:['#8f867e','Mountains','Block every line and cannot be built on.'],
+  tall:['#e2c796','Tall hills','Two levels high. A tower costs $200 but sees 2 squares further, over trees and ordinary hills.'],
+  parallel:['#f2b545','Parallel lines','One line of towers carries 2 messages a minute. To carry more, build a second line beside it: a tower can only serve one line. Lines slower than the latency limit do not count.'],
+  pole:['#8a6a4a','Wire pole','Poles link when they are within 2 squares, a knight’s move included. They need no sight line. $20 on open ground, $45 among trees. Each pole adds 1 s and a wire carries 6 messages a minute. Wire cannot cross mountains.'],
+  morse:['#f2b545','Morse code','Messages on the wire arrive in Morse. The sending speed rises from level to level. You can fix your own speed in Settings.'],
+  handoff:['#efe6cf','Wire to tower','A pole within 2 squares of a tower hands the message across. A line is only as busy as its slowest part, and a tower still carries 2 messages a minute.'],
+  fade:['#d0607f','Signal fade','Current weakens as it runs along a wire. From this level, after 6 spans (one span is the wire between two neighbouring poles) the signal is too faint to read and the line goes dead beyond that point. Every pole now shows a number: how many spans the signal has run since it was last renewed. It counts 1 to 6, and a pole past the limit turns red.'],
+  repeater:['#d9a441','Repeater station','The fix for signal fade. Place a repeater in the line the way you place a pole: it receives the faint signal and sends it on at full strength, so the count starts again from 0. $120, adds 8 s, carries 6 a minute. Use as few as you can: each one slows the line. Towns, towers and cable stations renew the signal too, so a long wire needs a repeater at least every 6 spans.'],
+  marshwire:['#7d9c86','Wire and marsh','Poles sink in marsh, and wire spans one square of it at most. Mist never affects wire, only towers.'],
+  sea:['#5c9cbf','Open sea','Too wide for wire, and usually too wide for towers. Nothing can be built on it, but a cable can be laid under it.'],
+  landing:['#6fa7c7','Cable station','Built on the coast: on land that touches the sea. $150. It joins the land wire like a repeater, renews the signal and adds 10 s.'],
+  cable:['#274b66','Submarine cable','Choose Cable, then drag from one cable station to another. A cable runs straight, under sea only, for up to 14 squares, at $40 a square. Drag along a cable again to take it up.'],
+  squares:['#f2b545','The law of squares','A cable\u2019s delay grows with the square of its length: 6 squares take 18 s, 12 squares take 72 s. Long cables also carry less: 6 a minute up to 6 squares, 4 up to 9 squares, 2 beyond that. Two short cables by way of an island beat one long one.'],
+  land:['#7d9a52','Land prices','Not all ground costs the same. Building on a private estate (dark hedged parkland) costs two and a half times as much. Common land (pale open grazing) costs half. The price label while you drag shows the exact cost. The direct line is not always the cheap one.'],
+  branch:['#d0607f','Two towns','This line must serve two offices. Each one needs the full contract: the stated messages a minute, every message inside the latency limit. One line can serve both: share towers as far as you can, then branch. A shared stretch carries both towns\u2019 traffic, so it must carry the total.'],
+  towns3:['#d0607f','Three towns','Three offices, each needing the full contract. A trunk shared by all three carries their combined traffic. Wire carries 6 a minute, so plan where the trunk splits.'],
+  islands:['#5c9cbf','Island mail','Two islands, one mainland coast. A single cable station can land cables to both islands, but it carries 6 a minute in total, shared between them.'],
+  city:['#a8927a','The pneumatic city','From 1853 London\u2019s telegraph offices were joined by pneumatic tubes: brass pipes under the streets, down which air pressure drove capsules packed with telegram forms. Buildings block everything here; tubes follow the streets.'],
+  tube:['#c98f3c','Tube','Pick Tube and drag along the streets to lay it. Squares join edge to edge only: diagonals do not connect. $30 a square. Each straight square adds 2 s, and a tube carries 10 telegrams a minute.'],
+  bend:['#d0607f','Bends','A capsule slows at every corner: a bend adds 5 s on top of the 2 s. Where three or more tubes meet, the junction adds 3 s. The straightest route is the fastest.'],
+  pump:['#9c4a35','Pumping station','The air pressure that drives the capsules runs out after '+Core.TUBE_K+' squares of tube. A pumping station renews it: $200, adds 4 s, carries 10 a minute. Pick Pump and tap a tube square to swap it. Tubes show the squares since the last pump as they near the limit.'],
+  bridge:['#cdbb98','Bridges','Tubes cannot run through the river, only along a bridge, at $80 a square.'],
+  tubes2:['#c98f3c','Parallel tubes','One tube carries 10 a minute. For more, lay a second tube along different streets. Tubes that touch edge to edge join up into one, and every junction slows them.'],
+  deep:['#3f789e','Deep water','Cable laid in deep water costs double: $80 a square.'],
+  decode:['#d0607f','Timed decoding','From here the receiving operator is on the clock in Operator and Expert modes: each letter must be read inside the time shown. Three errors and the message is lost.']
+};
+var KEY='nightfall-telegraph-v2';
+var S={mode:'engineer',sound:true,wpm:0,testing:false,progress:{},custom:[],cprog:{}};
+var sv=null;
+// Level order before towns and land prices were added; old saves keyed stars by position in this list.
+var OLD_ORDER=['First Signal','The Ridge','Wood and Water','Marsh Mist','The Pass','Twin Lines','The Long Line','The Wire','Two Systems','Long Haul','Fenland','Trunk Line','Winter Express','Grand Junction','The Narrow Sea','The Law of Squares','The Trench','Island Chain','The Channel','The Atlantic','Under the Streets','Pressure','Across the River','Rush Hour','Paris Network','Rohrpost'];
+function migrateProgress(pr){ var out={}, k; for(k in pr){ if(/^\d+$/.test(k)){ if(OLD_ORDER[+k]) out[OLD_ORDER[+k]]=pr[k]; } else out[k]=pr[k]; } return out; }
+try{ sv=JSON.parse(localStorage.getItem(KEY)||'null'); if(sv){ S.mode=MODES.indexOf(sv.mode)>=0?sv.mode:'engineer'; S.sound=sv.sound!==false; S.wpm=+sv.wpm||0; S.testing=!!sv.testing; S.progress=migrateProgress(sv.progress||{}); S.cprog=sv.cprog||{}; } }catch(e){}
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} }
+try{ var old=sv||JSON.parse(localStorage.getItem('nightfall-telegraph-v1')||'null');
+  if(old&&Array.isArray(old.custom)) old.custom.forEach(function(en){ try{ var d=validateDef(en.def); if(!sv) d.par=0; S.custom.push({id:String(en.id).replace(/[^a-z0-9]/gi,''),def:d}); }catch(e){} }); }catch(e){}
+
+var G=null, V={cs:40,dpr:1,terrain:document.createElement('canvas')}, canvas=$('#map'), ctx=canvas.getContext('2d');
+
+/* ---------- helpers ---------- */
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function ceil10(v){ return Math.ceil(v/10-1e-9)*10; }
+function fmt(v){ return Math.abs(v-Math.round(v))<.05?String(Math.round(v)):v.toFixed(1); }
+function starsHTML(n){ return '★★★'.slice(0,n)+'<s>'+'★★★'.slice(n)+'</s>'; }
+function semSVG(i){
+  var g=Core.semSegs(i,24,17), py=-8;
+  function ln(s,w){ return '<line x1="'+s[0][0].toFixed(1)+'" y1="'+(s[0][1]+py).toFixed(1)+'" x2="'+s[1][0].toFixed(1)+'" y2="'+(s[1][1]+py).toFixed(1)+'" stroke-width="'+w+'"/>'; }
+  return '<svg viewBox="-46 -50 92 96" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true">'+
+    '<path d="M-9 44 L-5 14 L5 14 L9 44 Z" fill="currentColor" stroke="none" opacity=".45"/><line x1="0" y1="14" x2="0" y2="-8" stroke-width="4"/>'+
+    ln(g.bar,5)+ln(g.left,4)+ln(g.right,4)+
+    '<circle cx="'+g.left[1][0].toFixed(1)+'" cy="'+(g.left[1][1]+py).toFixed(1)+'" r="3.4" fill="currentColor" stroke="none"/>'+
+    '<circle cx="'+g.right[1][0].toFixed(1)+'" cy="'+(g.right[1][1]+py).toFixed(1)+'" r="3.4" fill="currentColor" stroke="none"/>'+
+    '<circle cx="0" cy="-8" r="3" fill="currentColor" stroke="none"/></svg>';
+}
+function morseHTML(ch,cls){ return '<span class="'+cls+'">'+Core.MORSE[ch].split('').map(function(c){return '<i class="'+(c==='.'?'dot':'dash')+'"></i>';}).join('')+'</span>'; }
+function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; var t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function wpmFor(def){ return S.wpm||(def&&def.wpm)||10; }
+
+/* ---------- sound ---------- */
+var AC=null, lampTimers=[];
+function ac(){ if(!S.sound) return null; if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; } } if(AC.state==='suspended') AC.resume(); return AC; }
+function tone(f,d,when,type,vol){ var a=ac(); if(!a) return; var o=a.createOscillator(), g=a.createGain(), t=a.currentTime+(when||0), r=Math.min(.01,d/4);
+  o.type=type||'sine'; o.frequency.value=f; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol||.1,t+r); g.gain.setValueAtTime(vol||.1,t+d-r); g.gain.linearRampToValueAtTime(0,t+d);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+d+.02); }
+var sfx={ tick:function(){tone(1400,.02,0,'square',.025);}, place:function(){tone(520,.07,0,'triangle');}, remove:function(){tone(260,.08,0,'triangle');}, bad:function(){tone(130,.16,0,'square',.05);},
+  hop:function(){tone(880,.05,0,'sine',.06);}, ok:function(){tone(700,.08);tone(930,.1,.08);},
+  linked:function(){tone(520,.08,0,'triangle');tone(780,.12,.08,'triangle');},
+  win:function(){[523,659,784,1047].forEach(function(f,i){tone(f,.16,i*.13,'triangle',.12);});},
+  lose:function(){[392,330,262,196].forEach(function(f,i){tone(f,.22,i*.2,'sine',.1);});} };
+function playMorse(ch,wpm){ lampTimers.forEach(clearTimeout); lampTimers=[]; var lamp=$('#lamp'), U=1.2/(wpm||10), t=.05;
+  Core.MORSE[ch].split('').forEach(function(c){ var d=(c==='.'?1:3)*U; tone(620,d,t,'sine',.14);
+    (function(t0,d0){ lampTimers.push(setTimeout(function(){ if(lamp) lamp.classList.add('on'); },t0*1000)); lampTimers.push(setTimeout(function(){ if(lamp) lamp.classList.remove('on'); },(t0+d0)*1000)); })(t,d);
+    t+=d+U; }); }
+
+/* ---------- menu ---------- */
+function prog(i){ return S.progress[LEVELS[i].name]; }
+function unlocked(i){ return S.testing||i===0||!!(prog(i)&&prog(i).stars)||!!(prog(i-1)&&prog(i-1).stars); }
+function renderMenu(){
+  [].forEach.call(document.querySelectorAll('.mode'),function(b){ b.setAttribute('aria-checked',b.dataset.mode===S.mode?'true':'false'); });
+  var h='';
+  ERAS.forEach(function(e){ h+='<h2>'+e.t+' <small>'+e.s+'</small></h2><div class="levels">';
+    LEVELS.forEach(function(d,i){ if(d.era!==e.n) return; var p=prog(i)||{stars:0};
+      h+='<button class="lv" data-level="'+i+'"'+(unlocked(i)?'':' disabled')+'><i>'+(i+1)+'</i><b>'+d.name+'</b><span class="st">'+
+        (unlocked(i)?starsHTML(p.stars||0)+(p.mode?'<u>'+MODE_NAME[MODES[p.mode]]+'</u>':''):'<u style="margin:0">Locked</u>')+'</span></button>'; });
+    h+='</div>'; });
+  $('#eras').innerHTML=h;
+  var h3=''; S.custom.forEach(function(en,i){ var p=S.cprog[en.id]||{stars:0};
+    h3+='<div class="cl"><button class="lv" data-custom="'+en.id+'"><i>'+(i+1)+'</i><b>'+en.def.name+'</b><span class="st">'+starsHTML(p.stars||0)+(p.mode?'<u>'+MODE_NAME[MODES[p.mode]]+'</u>':'')+'</span></button><button class="btn mini" data-edit="'+en.id+'">Edit</button></div>'; });
+  h3+='<div class="cl"><button class="lv add" data-act="newLevel"><i>+</i><b>New level</b><span class="st"><u style="margin:0">Open the editor</u></span></button><button class="btn mini" data-act="impOpen">Import JSON</button></div>';
+  $('#lv3').innerHTML=h3;
+}
+var heroI=0, HERO='SIGNAL';
+function heroTick(){ $('#heroSem').innerHTML=semSVG(HERO.charCodeAt(heroI%HERO.length)-65); heroI++; }
+function openMenu(){ hideMsg(); G=null; $('#game').hidden=true; $('#overlay').hidden=true; $('#menu').hidden=false; renderMenu(); }
+function showSettings(){ pushCard(); var o='<option value="0"'+(S.wpm?'':' selected')+'>Follow the level (slow at first, faster later)</option>';
+  [5,8,10,13,16,20,25].forEach(function(w){ o+='<option value="'+w+'"'+(S.wpm===w?' selected':'')+'>'+w+' words a minute</option>'; });
+  card('<h4><small>Options</small>Settings</h4><div class="form"><label class="full" for="setWpm">Morse sending speed<select id="setWpm">'+o+'</select></label>'+
+    '<div class="fld">Sound<button class="btn" data-act="sound" id="soundBtn">'+(S.sound?'Sound on':'Sound off')+'</button></div>'+
+    '<div class="fld">Testing mode<button class="btn" data-act="testing" id="testBtn" aria-pressed="'+S.testing+'">'+(S.testing?'Testing on':'Testing off')+'</button></div></div>'+
+    '<p class="m">Testing mode unlocks every level and adds a Solution button that fills in the best network the game knows, so you can check a level and send it straight away. Stars earned while it is on still count.</p>'+
+    '<p class="m">Levels on the wire start at 6 words a minute and rise to 22. A fixed speed here overrides them.</p>'+
+    '<div class="acts"><button class="btn primary" data-act="close">Done</button><button class="btn" data-act="tryMorse">Hear a sample</button></div>'); }
+
+/* ---------- level setup ---------- */
+function startLevel(idx,restore,cdef,origin,cid){
+  if(cdef) idx=-1;
+  var def=cdef||LEVELS[idx], L=Core.parse(def.map), par=def.par||Core.solve(L,def).cost;
+  if(!isFinite(par)) return false;
+  var budget=ceil10(par*def.budgetPct);
+  G={idx:idx,cdef:cdef||null,origin:origin||null,cid:cid||null,def:def,L:L,tools:Core.tools(def),par:par,budget:budget,star3:ceil10(par),star2:ceil10(par+(budget-par)/2),
+    structs:(restore&&restore.structs)||[],cables:(restore&&restore.cables)||[],history:[],tool:'tower',phase:'brief',ghost:null,drag:null,sim:null,fogA:0,
+    word:def.words[Math.floor(Math.random()*def.words.length)],dirty:true,seed:(idx>=0?idx:5)*977+13};
+  $('#menu').hidden=true; $('#game').hidden=false; $('#decode').hidden=true;
+  $('#lvTitle').innerHTML='<small>'+def.from+' to '+def.to+' · '+MODE_NAME[S.mode]+'</small>'+(idx>=0?(idx+1)+'. ':'')+def.name;
+  renderTools();
+  setTool(def.era===4?'tube':def.era>=2?'pole':'tower'); replan(); resize(); setPhaseUI(); showBrief(); return true;
+}
+function showBrief(){
+  var d=G.def, dec=S.mode!=='engineer', intro='';
+  (d.intro||[]).concat(dec&&d.decode&&d.intro&&d.intro.indexOf('decode')<0&&G.idx<0?[]:[]).forEach(function(k){ var e=INTRO[k]; if(e) intro+='<div class="ni"><i style="background:'+e[0]+'"></i><div><b>'+e[1]+'</b><span>'+e[2]+'</span></div></div>'; });
+  card('<h4><small>'+(G.idx>=0?'Level '+(G.idx+1):G.origin==='editor'?'Test play':'Your level')+' · '+d.from+' to '+d.to+'</small>'+d.name+'</h4>'+(d.brief?'<p>'+d.brief+'</p>':'')+
+    '<div class="facts"><div><small>Carry</small>'+d.need+' a minute'+(G.L.ends.length>1?' to each of '+G.L.ends.length+' towns':'')+'</div><div><small>Latency limit</small>'+d.limit+' s</div><div><small>Budget</small>$'+G.budget+'</div>'+
+    (d.mist?'<div><small>Mist</small>'+Math.round(d.mist*100)+'% of the time</div>':'')+
+    (dec?'<div><small>Code</small>'+(d.era===1?'Semaphore':'Morse, '+wpmFor(d)+' wpm')+(d.decode?' · '+d.decode+' s a letter':'')+'</div>':'')+'</div>'+
+    (intro?'<div class="new"><h5>New in this level</h5>'+intro+'</div>':'')+
+    '<div class="acts"><button class="btn primary" data-act="begin">Begin</button>'+(dec?'<button class="btn" data-act="book">Code book</button>':'')+'</div>',!!intro);
+}
+var PIECE={
+  tower:{name:'Tower',cost:'$100',st:[['delay','25 s'],['a minute','2'],['range','4 sq'],['per hill level','+1']],
+    svg:'<path d="M9 38 L12 18 H18 L21 38Z" fill="#efe6cf" stroke="#141d2b" stroke-width="1.5"/><path d="M15 18 V8 M6 10 L24 6 M6 10 L4 4 M24 6 L27 12" stroke="#efe6cf" stroke-width="2.6" stroke-linecap="round" fill="none"/>'},
+  pole:{name:'Pole',cost:'$20',st:[['delay','1 s'],['a minute','6'],['range','2 sq'],['in forest','$45']],
+    svg:'<path d="M15 38 V6 M8 9 H22 M10 15 H20" stroke="#c9a27a" stroke-width="2.6" stroke-linecap="round"/>'},
+  repeater:{name:'Repeater',cost:'$120',st:[['delay','8 s'],['a minute','6'],['range','2 sq'],['signal','renews']],
+    svg:'<path d="M15 20 V4 M8 7 H22" stroke="#c9a27a" stroke-width="2.6" stroke-linecap="round"/><path d="M5 24 L15 16 L25 24Z" fill="#7a4a2a"/><rect x="7" y="24" width="16" height="13" fill="#d9a441" stroke="#141d2b" stroke-width="1.5"/>'},
+  landing:{name:'Station',cost:'$150',st:[['delay','10 s'],['a minute','6'],['only','coast'],['signal','renews']],
+    svg:'<path d="M15 20 V4 M8 7 H22" stroke="#c9a27a" stroke-width="2.6" stroke-linecap="round"/><path d="M5 24 L15 16 L25 24Z" fill="#274b66"/><rect x="7" y="24" width="16" height="13" fill="#6fa7c7" stroke="#141d2b" stroke-width="1.5"/>'},
+  tube:{name:'Tube',cost:'$30/sq',st:[['straight','2 s'],['a bend','+5 s'],['a minute','10'],['pressure','10 sq']],
+    svg:'<path d="M15 2 V24 H28" stroke="#5a3a1a" stroke-width="9" fill="none" stroke-linejoin="round"/><path d="M15 2 V24 H28" stroke="#c98f3c" stroke-width="6" fill="none" stroke-linejoin="round"/><circle cx="15" cy="24" r="4.5" fill="#e8c27a" stroke="#5a3a1a" stroke-width="1.5"/>'},
+  pump:{name:'Pump',cost:'$200',st:[['delay','4 s'],['a minute','10'],['pressure','renews'],['only','street']],
+    svg:'<rect x="5" y="18" width="20" height="19" fill="#9c4a35" stroke="#141d2b" stroke-width="1.5"/><path d="M3 18 L15 10 L27 18Z" fill="#5a2a1f" stroke="#141d2b" stroke-width="1.5"/><rect x="19" y="3" width="5" height="12" fill="#6b3426" stroke="#141d2b" stroke-width="1.2"/><rect x="11" y="27" width="8" height="10" fill="#e8c27a"/>'},
+  cable:{name:'Cable',cost:'$40/sq',st:[['s delay','len\u00b2\u00f72'],['a minute','6\u21922'],['reach','14 sq'],['deep, a sq','$80']],
+    svg:'<path d="M2 14 Q8 8 14 14 T26 14" stroke="#6fa7c7" stroke-width="2" fill="none"/><path d="M3 30 C10 22 20 38 27 28" stroke="#b9d6e4" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M3 30 C10 22 20 38 27 28" stroke="#141d2b" stroke-width="1.2" fill="none"/>'}
+};
+function renderTools(){ var h=''; G.tools.forEach(function(k){ var p=PIECE[k];
+  h+='<button class="tcard" data-tool="'+k+'" aria-pressed="'+(G.tool===k)+'"><span class="nm"><svg viewBox="0 0 30 40" aria-hidden="true">'+p.svg+'</svg>'+p.name+'<em>'+p.cost+'</em></span><dl>'+
+    p.st.map(function(x){ return '<dd><b>'+x[1]+'</b>'+x[0]+'</dd>'; }).join('')+'</dl></button>'; });
+  $('#tools').innerHTML=h; }
+function setTool(t){ if(!G) return; if(G.tools&&G.tools.indexOf(t)<0) t='tower'; G.tool=t; [].forEach.call(document.querySelectorAll('.tcard'),function(b){ b.setAttribute('aria-pressed',b.dataset.tool===t?'true':'false'); }); }
+function menuBtn(){ return '<button class="btn ghost" data-act="menu">'+(G&&G.origin==='editor'?'Back to editor':'Levels')+'</button>'; }
+function showSolution(){ if(!G||G.phase!=='plan') return; setStatus('Working out the cheapest network the game knows for this contract.','Solving','info'); setTimeout(showSolution2,40); }
+function showSolution2(){ if(!G||G.phase!=='plan') return; var r=Core.solve(G.L,G.def); if(!isFinite(r.cost)){ setStatus('The solver found no network for this contract.','No solution','bad'); return; }
+  var before=stats(); G.history.push(snapshot()); G.structs=r.structs.map(function(o){ return {x:o.x,y:o.y,kind:o.kind}; }); G.cables=JSON.parse(JSON.stringify(r.cables||[])); replan(); flash('Solution loaded',before); }
+function setPhaseUI(){ var plan=G.phase==='plan'||G.phase==='brief', ed=G.phase==='edit'; $('#solBtn').hidden=!S.testing||ed;
+  $('#toolbar').hidden=ed; $('#edbar').hidden=!ed; $('#toolbar').style.visibility=plan?'visible':'hidden';
+  [].forEach.call(document.querySelectorAll('.hud-r .ed'),function(b){ b.hidden=!ed; });
+  [].forEach.call(document.querySelectorAll('.hud-r .pl'),function(b){ b.hidden=ed; }); }
+function setEv(){ var ev=G.ev=Core.evaluate(G.L,G.structs,G.def,G.cables), ls=G.lstat=ev.net.links.map(function(){ return 0; });
+  ev.paths.forEach(function(p){ var s=p.lat<=G.def.limit?2:1; p.links.forEach(function(li){ if(s>ls[li]) ls[li]=s; }); });
+  G.spans=ev.K?spanCounts(ev.net,ev.K):null;
+  G.diag=(G.phase==='plan'||G.phase==='brief')&&ev.fastest!==null&&ev.rateClear<G.def.need&&!ev.paths.some(function(p){ return p.lat>G.def.limit; })?Core.diagnose(ev.net,ev.K,ev.res.ncap,ev.res.ecap,1+ev.ratesClear.indexOf(ev.rateClear)):null;
+  G.dirty=true; }
+function slowText(p,lat){ var N=G.ev.net.nodes, c={}, cab=0, cabN=0, D={tower:25,pole:1,repeater:8,landing:10}, NM={tower:['tower','towers'],pole:['pole','poles'],repeater:['repeater','repeaters'],landing:['cable station','cable stations']};
+  p.nodes.forEach(function(k){ var n=N[k]; if(n.kind!=='station') c[n.kind]=(c[n.kind]||0)+1; });
+  p.links.forEach(function(li){ var l=G.ev.net.links[li]; if(l.type==='cable'){ cab+=l.lat; cabN++; } });
+  var parts=[], big='', bigV=-1;
+  if(c.tube){ var nb=0, nj=0; p.nodes.forEach(function(k){ if(N[k].kind!=='tube') return; var x=G.ev.net.nlat[k]; if(x===2+Core.BEND) nb++; else if(x===2+Core.JUNC) nj++; });
+    parts.push(c.tube+' tube squares at 2 s'); bigV=c.tube*2; big='tube';
+    if(nb){ parts.push(nb+' '+(nb>1?'bends':'bend')+' at +'+Core.BEND+' s'); if(nb>=2&&nb*Core.BEND>=c.tube){ bigV=Math.max(bigV,nb*Core.BEND); big='bend'; } }
+    if(nj){ parts.push(nj+' '+(nj>1?'junctions':'junction')+' at +'+Core.JUNC+' s'); if(nj*Core.JUNC>bigV){ bigV=nj*Core.JUNC; big='junc'; } }
+    if(c.pump){ parts.push(c.pump+' '+(c.pump>1?'pumps':'pump')+' at 4 s'); if(c.pump*4>bigV){ bigV=c.pump*4; big='pump'; } } }
+  ['tower','repeater','landing','pole'].forEach(function(k){ if(!c[k]) return; var v=c[k]*D[k]; parts.push(c[k]+' '+NM[k][c[k]>1?1:0]+' at '+D[k]+' s'); if(v>bigV){ bigV=v; big=k; } });
+  if(cabN){ parts.push(cabN>1?cabN+' cables, '+cab+' s':'a cable, '+cab+' s'); if(cab>bigV){ bigV=cab; big='cable'; } }
+  var tip={tower:'Use fewer towers, spaced further apart. A tower on a hill sees 1 square further per level, so it can bridge a longer gap.',
+    repeater:'Use fewer repeaters: wire can run 6 spans between them. A shorter route may need none.',
+    landing:'Each cable station adds 10 s: plan the crossing with as few landings as you can.',
+    pole:'Take a more direct route with fewer poles.',
+    cable:'Long cables are slow: delay is half the length squared. Two short cables by way of an island are faster than one long one.',
+    tube:'Take a shorter route through the streets.', bend:'Bends slow the capsules: follow long straight streets and turn as few times as you can.',
+    junc:'Tubes that touch join up, and junctions slow them: keep separate tubes a street apart.', pump:'Use as few pumps as you can: tube can run '+Core.TUBE_K+' squares between them.'}[big]||'';
+  return 'The message takes <b>'+lat+' s</b>; the limit is '+G.def.limit+' s. It passes '+parts.join(', ')+'. '+tip; }
+function townNames(d){ return [d.to].concat(d.also||[]); }
+function nodeName(k){ var n=G.ev.net.nodes[k]; return k===0?G.def.from:k<G.ev.net.off?townNames(G.def)[k-1]:'a '+KNAME[n.kind].toLowerCase(); }
+function diagText(){ var d=G.diag, D=G.def, parts=[], slow=G.ev.paths.filter(function(p){ return p.lat>D.limit; });
+  if(slow.length) return 'Your next line takes '+slow[0].lat+' s, over the '+D.limit+' s limit, so it carries nothing';
+  if(!d) return 'add a parallel line';
+  if(!d.idle) return D.era===4?'every route left runs through tube that is already full. Lay a second tube along different streets: a tube carries 10 a minute':'every route left runs through pieces that are already full. Build a separate line with its own pieces: a pole carries 6 a minute, a tower 2';
+  if(d.fade>=0) parts.push(D.era===4?'its air pressure runs out before '+nodeName(d.fade):'its signal fades out before '+nodeName(d.fade));
+  if(d.full.length) parts.push('it joins '+d.full.length+' '+(d.full.length>1?'pieces':'piece')+' already carrying a full load (marked FULL): each line needs its own '+(D.era===4?'tube':'poles'));
+  if(d.lat>D.limit) parts.push('it would take '+d.lat+' s, over the '+D.limit+' s limit');
+  return parts.length?'The next line fails: '+parts.join('; '):'add a parallel line'; }
+// Spans run since the signal was last renewed, counted downstream from the start town only.
+function spanCounts(net,K){ var N=net.nodes, n=N.length, d=N.map(function(){ return Infinity; }), done=[], h=N.map(function(){ return Infinity; }), dead=N.map(function(){ return false; }), i, u;
+  d[0]=0;
+  for(;;){ u=-1; for(i=0;i<n;i++) if(!done[i]&&d[i]<Infinity&&(u<0||d[i]<d[u])) u=i; if(u<0) break; done[u]=1;
+    net.adj[u].forEach(function(e){ var v=e[0], nd=d[u]+e[2].lat+net.nlat[v]+1e-3; if(nd<d[v]) d[v]=nd; }); }
+  var order=[]; for(i=1;i<n;i++) if(d[i]<Infinity) order.push(i); order.sort(function(a,b){ return d[a]-d[b]; }); h[0]=0;
+  order.forEach(function(v){ var best=Infinity, lost=false;
+    net.adj[v].forEach(function(e){ var w=e[0], l=e[2]; if(!(d[w]<d[v])) return;
+      if(dead[w]){ lost=true; return; } if(!isFinite(h[w])) return;
+      if(l.span){ var t=h[w]+1; if(t>K){ lost=true; return; } best=Math.min(best,Core.passive(N[v])?t:0); } else best=0; });
+    if(best<Infinity) h[v]=best; else if(lost) dead[v]=true; });
+  return {h:h,dead:dead}; }
+function contractOk(){ var ev=G.ev; return ev.fastest!==null&&ev.rate>=G.def.need&&ev.cost<=G.budget; }
+function replan(){ var was=G.ev&&contractOk(); setEv(); if(!was&&contractOk()&&G.phase==='plan') sfx.linked(); updateHud(); }
+function starsFor(c){ return c<=G.star3?3:c<=G.star2?2:1; }
+function meter(id,txt,frac,cls){ var m=$('#'+id); m.className='meter '+cls; m.querySelector('b').textContent=txt; m.querySelector('u').style.width=clamp(frac*100,0,100)+'%'; }
+function updateHud(){
+  var ev=G.ev, d=G.def, lat=ev.fastest, okL=lat!==null&&lat<=d.limit, okR=ev.rate>=d.need, okC=ev.cost<=G.budget, B=G.budget, st=$('#status');
+  meter('mLat',(lat===null?'–':lat+' s')+' / '+d.limit+' s',lat===null?0:lat/d.limit,lat===null?'':okL?'ok':'bad');
+  meter('mRate',fmt(ev.rate)+' / '+d.need+(ev.rates.length>1?' each':''),ev.rate/d.need,okR?'ok':'');
+  meter('mCost','$'+ev.cost+' / '+(B?'$'+B:'–'),B?ev.cost/B:0,B&&!okC?'bad':okC&&okR?'ok':'');
+  $('#tk3').style.left=(B?G.star3/B*100:0)+'%'; $('#tk2').style.left=(B?G.star2/B*100:0)+'%'; $('#tk3').hidden=$('#tk2').hidden=!B;
+  if(G.phase==='edit'){ var em=G.edMsg||''; msg(/class="w"/.test(em)?'bad':/Solvable/.test(em)?'good':'info','Level editor',em.replace(/<b>Solvable\.<\/b> /,'')); return; }
+  if(G.phase!=='plan'&&G.phase!=='brief') return;
+  var mistLoss=d.mist?ev.rateClear-ev.rate:0, m;
+  if(!G.structs.length&&lat===null) m=['info','Build the line','Drag on the map to place a '+KNAME[G.tool==='cable'?'landing':G.tool].toLowerCase()+'. Each piece shows its cost, delay and load on the bar below.'];
+  else if(lat===null&&G.L.ends.length>1&&ev.paths.length&&!(ev.faded||(G.spans&&G.spans.dead.some(Boolean)))) m=['info','Not every town is connected',townNames(d).filter(function(nm,i){ return !ev.paths.some(function(p){ return p.dest===i+1; }); }).join(' and ')+' '+(ev.paths.length?'still needs a line.':'')];
+  else if(lat===null) m=(ev.faded||(G.spans&&G.spans.dead.some(Boolean)))?(d.era===4?['bad','Out of pressure','The air pressure runs out after '+ev.K+' squares of tube; the red marks show where the capsule stops. Pick <b>Pump</b> and tap a tube square earlier in the run to swap it.']:['bad','Signal lost','The signal dies after '+ev.K+' spans of wire; the red marks show where. Pick <b>Repeater</b> and tap a pole earlier in the run to swap it.']):['info','No line yet','Nothing connects '+d.from+' to '+townNames(d).join(' or ')+' so far.'];
+  else if(!okL) m=['bad','Too slow',slowText(ev.paths[0],lat)];
+  else if(!okR) m=['warn','Too few messages',(ev.rates.length>1?townNames(d).map(function(nm,i){ return nm+' <b>'+fmt(ev.rates[i])+' of '+d.need+'</b>'; }).join(', ')+' a minute. ':'Carrying <b>'+fmt(ev.rate)+' of '+d.need+'</b> a minute. ')+(ev.rateClear>=d.need?'Mist is costing '+fmt(mistLoss)+'; route a line above the marsh.':'<span class="w">'+diagText().replace(/^./,function(c){ return c.toUpperCase(); })+'.</span>')];
+  else if(!okC) m=['bad','Over budget','<b>$'+(ev.cost-B)+'</b> over. Look for a cheaper route or fewer pieces.'];
+  else m=['good','Contract met','<span class="g">'+'★★★'.slice(0,starsFor(ev.cost))+'</span> '+(starsFor(ev.cost)<3?'Three stars at $'+G.star3+' or less.':'Send it.')];
+  msg(m[0],m[1],m[2]);
+  var b=$('#send'), ok=contractOk(); b.setAttribute('aria-disabled',ok?'false':'true'); b.textContent=lat===null?'No line':!okL?'Too slow':!okR?'Too few':!okC?'Over budget':'Send';
+  $('#undo').disabled=!G.history.length; $('#clear').disabled=!G.structs.length;
+}
+var STAMP={bad:'!',warn:'!',good:'\u2713',info:'\u2192'};
+// The dispatch appears when there is news (a new problem, the contract met, the line sending, or on request) and stays until the player taps it away. Its text always shows the current state.
+var MSG={key:'',timer:0};
+function hideMsg(){ clearTimeout(MSG.timer); $('#dispatch').hidden=true; }
+function showMsg(ms){ var d=$('#dispatch'); d.hidden=false; d.classList.remove('pop'); void d.offsetWidth; d.classList.add('pop'); }
+function msg(tone,head,body,force){ var d=$('#dispatch'), key=tone+'|'+head;
+  d.dataset.tone=tone; $('#dStamp').textContent=STAMP[tone]; $('#dHead').textContent=head; $('#status').innerHTML=body;
+  if(force||(key!==MSG.key&&tone!=='info')) showMsg();
+  MSG.key=key; }
+function setStatus(t,head,tone){ msg(tone||'info',head||'Dispatch',t,true); }
+
+/* ---------- canvas sizing and terrain ---------- */
+function resize(){
+  if(!G) return; var r=$('#mapwrap').getBoundingClientRect(), L=G.L;
+  var cs=Math.max(12,Math.floor(Math.min(r.width/L.w,r.height/L.h)));
+  V.cs=cs; V.dpr=Math.min(2,window.devicePixelRatio||1);
+  canvas.style.width=cs*L.w+'px'; canvas.style.height=cs*L.h+'px';
+  canvas.width=Math.round(cs*L.w*V.dpr); canvas.height=Math.round(cs*L.h*V.dpr);
+  paintTerrain(); G.dirty=true;
+}
+function blob(c,L,inSet,cs,inset,rad){
+  c.beginPath();
+  for(var y=0;y<L.h;y++)for(var x=0;x<L.w;x++){ if(!inSet(x,y)) continue;
+    var l=inSet(x-1,y), r=inSet(x+1,y), u=inSet(x,y-1), d=inSet(x,y+1), ov=.6;
+    var x0=x*cs+(l?-ov:inset), x1=(x+1)*cs-(r?-ov:inset), y0=y*cs+(u?-ov:inset), y1=(y+1)*cs-(d?-ov:inset);
+    var a=(!l&&!u)?rad:0, b=(!r&&!u)?rad:0, e=(!r&&!d)?rad:0, f=(!l&&!d)?rad:0;
+    c.moveTo(x0+a,y0); c.lineTo(x1-b,y0); c.quadraticCurveTo(x1,y0,x1,y0+b); c.lineTo(x1,y1-e); c.quadraticCurveTo(x1,y1,x1-e,y1);
+    c.lineTo(x0+f,y1); c.quadraticCurveTo(x0,y1,x0,y1-f); c.lineTo(x0,y0+a); c.quadraticCurveTo(x0,y0,x0+a,y0); c.closePath(); }
+}
+function paintTerrain(){
+  var L=G.L, cs=V.cs, tc=V.terrain, R=rng(G.seed), x, y, i;
+  tc.width=canvas.width; tc.height=canvas.height; var c=tc.getContext('2d'); c.setTransform(V.dpr,0,0,V.dpr,0,0);
+  function T(x,y){ return (x<0||y<0||x>=L.w||y>=L.h)?-1:L.t[y*L.w+x]; }
+  function cell(x,y,k){ R=rng(G.seed+(y*L.w+x)*7919+k); }
+  function layer(set,fill,inset,rad,shadow,edge){
+    if(shadow){ c.save(); c.translate(cs*.05,cs*.09); blob(c,L,set,cs,inset,rad); c.fillStyle='rgba(38,48,28,'+shadow+')'; c.fill(); c.restore(); }
+    blob(c,L,set,cs,inset,rad); c.fillStyle=fill; c.fill(); if(edge){ c.strokeStyle=edge; c.lineWidth=Math.max(1,cs*.03); c.stroke(); } }
+  var city=G.def.era===4; for(i=0;i<L.w*L.h&&!city;i++) if(L.t[i]===Core.BUILD) city=true;
+  c.fillStyle=city?'#cdc3ad':'#a9bf7e'; c.fillRect(0,0,L.w*cs,L.h*cs);
+  c.strokeStyle=city?'rgba(120,108,88,.35)':'rgba(120,148,84,.55)'; c.lineWidth=Math.max(1,cs*.025); c.lineCap='round';
+  if(city){ for(y=0;y<L.h;y++)for(x=0;x<L.w;x++){ if(T(x,y)!==Core.PLAIN) continue; c.beginPath(); for(i=1;i<4;i++){ c.moveTo(x*cs,(y+i/4)*cs); c.lineTo((x+1)*cs,(y+i/4)*cs); } c.stroke(); } }
+  else for(i=0;i<L.w*L.h*3;i++){ x=R()*L.w*cs; y=R()*L.h*cs; c.beginPath(); c.moveTo(x,y); c.lineTo(x+cs*.03,y-cs*.09); c.stroke(); }
+  function seaAt(x,y){ var t=L.t[clamp(y,0,L.h-1)*L.w+clamp(x,0,L.w-1)]; return t===Core.SEA||t===Core.DEEP; }
+  function deepAt(x,y){ return L.t[clamp(y,0,L.h-1)*L.w+clamp(x,0,L.w-1)]===Core.DEEP; }
+  layer(seaAt,'#5c9cbf',0,cs*.34,0,null);
+  layer(deepAt,'#3f789e',cs*.08,cs*.36,0,null);
+  c.strokeStyle='rgba(215,235,245,.45)'; c.lineWidth=Math.max(1,cs*.035);
+  for(y=0;y<L.h;y++)for(x=0;x<L.w;x++) if(seaAt(x,y)){ cell(x,y,5); var sx=(x+.15+R()*.5)*cs, sy=(y+.3+R()*.4)*cs;
+    c.beginPath(); c.moveTo(sx,sy); c.quadraticCurveTo(sx+cs*.12,sy-cs*.08,sx+cs*.24,sy); c.stroke(); }
+  layer(function(x,y){var t=T(x,y);return t===Core.RIVER||t===Core.BRIDGE;},'#6ea6c4',cs*.04,cs*.3,0,'rgba(60,110,140,.6)');
+  c.strokeStyle='rgba(205,230,240,.7)'; c.lineWidth=Math.max(1,cs*.035);
+  for(y=0;y<L.h;y++)for(x=0;x<L.w;x++) if(T(x,y)===Core.RIVER){ cell(x,y,1); for(i=0;i<2;i++){ var wx=(x+.2+R()*.4)*cs, wy=(y+.25+i*.4+R()*.1)*cs;
+    c.beginPath(); c.moveTo(wx,wy); c.quadraticCurveTo(wx+cs*.1,wy-cs*.07,wx+cs*.2,wy); c.stroke(); } }
+  layer(function(x,y){return T(x,y)===Core.SWAMP;},'#7d9c86',cs*.03,cs*.34,0,'rgba(70,96,80,.5)');
+  for(y=0;y<L.h;y++)for(x=0;x<L.w;x++) if(T(x,y)===Core.SWAMP){ cell(x,y,2);
+    c.fillStyle='rgba(84,132,146,.75)'; c.beginPath(); c.ellipse((x+.3+R()*.4)*cs,(y+.35+R()*.3)*cs,cs*.2,cs*.09,0,0,7); c.fill();
+    c.strokeStyle='#4c5d38'; c.lineWidth=Math.max(1,cs*.03);
+    for(i=0;i<5;i++){ var rx=(x+.12+R()*.76)*cs, ry=(y+.3+R()*.6)*cs; c.beginPath(); c.moveTo(rx,ry); c.lineTo(rx+(R()-.5)*cs*.06,ry-cs*.16); c.stroke(); } }
+  layer(function(x,y){var t=T(x,y);return t===Core.HILL||t===Core.HIGH||t===Core.MOUNT;},'#cfc27f',cs*.03,cs*.36,.3,'rgba(236,228,170,.9)');
+  layer(function(x,y){var t=T(x,y);return t===Core.HIGH||t===Core.MOUNT;},'#e2c796',cs*.14,cs*.3,.28,'rgba(250,236,196,.9)');
+  layer(function(x,y){return T(x,y)===Core.MOUNT;},'#a49a92',cs*.2,cs*.26,.3,null);
+  for(y=0;y<L.h;y++)for(x=0;x<L.w;x++){ var t=T(x,y);
+    if(t===Core.HILL||t===Core.HIGH){ c.strokeStyle='rgba(120,104,52,.5)'; c.lineWidth=Math.max(1,cs*.03);
+      for(i=0;i<(t===Core.HIGH?3:2);i++){ var hx=(x+.6+i*.1)*cs, hy=(y+.62+i*.08)*cs; c.beginPath(); c.moveTo(hx,hy); c.lineTo(hx+cs*.12,hy+cs*.1); c.stroke(); }
+      if(t===Core.HIGH){ c.fillStyle='rgba(110,88,40,.75)'; c.beginPath(); c.moveTo((x+.5)*cs,(y+.2)*cs); c.lineTo((x+.6)*cs,(y+.36)*cs); c.lineTo((x+.4)*cs,(y+.36)*cs); c.fill(); } }
+    if(t===Core.MOUNT){ cell(x,y,4); for(i=0;i<2;i++){ var mx=(x+.3+i*.36+(R()-.5)*.08)*cs, my=(y+.74-i*.1)*cs, mh=cs*(.5+R()*.14), mw=cs*.3;
+      c.fillStyle='#6f6862'; c.beginPath(); c.moveTo(mx-mw,my); c.lineTo(mx,my-mh); c.lineTo(mx+mw,my); c.fill();
+      c.fillStyle='#8f867e'; c.beginPath(); c.moveTo(mx-mw,my); c.lineTo(mx,my-mh); c.lineTo(mx-mw*.1,my); c.fill();
+      c.fillStyle='#f3f0e8'; c.beginPath(); c.moveTo(mx-mw*.34,my-mh*.66); c.lineTo(mx,my-mh); c.lineTo(mx+mw*.34,my-mh*.66); c.lineTo(mx+mw*.1,my-mh*.56); c.lineTo(mx-mw*.1,my-mh*.7); c.fill(); } } }
+  layer(function(x,y){return T(x,y)===Core.BUILD;},'#a8927a',cs*.04,cs*.1,.4,'rgba(60,44,30,.55)');
+  for(y=0;y<L.h;y++)for(x=0;x<L.w;x++) if(T(x,y)===Core.BUILD){ cell(x,y,6);
+    c.fillStyle=R()<.5?'#8e7862':'#b49e84'; c.fillRect((x+.14)*cs,(y+.14)*cs,cs*.72,cs*.72);
+    c.strokeStyle='rgba(60,44,30,.35)'; c.lineWidth=Math.max(1,cs*.02); c.beginPath(); c.moveTo((x+.14)*cs,(y+.5)*cs); c.lineTo((x+.86)*cs,(y+.5)*cs); c.stroke();
+    if(R()<.45){ c.fillStyle='#6b5646'; c.fillRect((x+.2+R()*.5)*cs,(y+.2+R()*.4)*cs,cs*.1,cs*.14); } }
+  for(y=0;y<L.h;y++)for(x=0;x<L.w;x++) if(T(x,y)===Core.BRIDGE){ var rv=function(xx,yy){ var t=T(xx,yy); return t===Core.RIVER||t===Core.BRIDGE; }, horiz=rv(x,y-1)||rv(x,y+1);
+    c.fillStyle='#cdbb98'; c.strokeStyle='#6b5a44'; c.lineWidth=Math.max(1.5,cs*.05);
+    if(horiz){ c.fillRect(x*cs-1,(y+.18)*cs,cs+2,cs*.64); c.beginPath(); c.moveTo(x*cs,(y+.18)*cs); c.lineTo((x+1)*cs,(y+.18)*cs); c.moveTo(x*cs,(y+.82)*cs); c.lineTo((x+1)*cs,(y+.82)*cs); c.stroke(); }
+    else { c.fillRect((x+.18)*cs,y*cs-1,cs*.64,cs+2); c.beginPath(); c.moveTo((x+.18)*cs,y*cs); c.lineTo((x+.18)*cs,(y+1)*cs); c.moveTo((x+.82)*cs,y*cs); c.lineTo((x+.82)*cs,(y+1)*cs); c.stroke(); } }
+  layer(function(x,y){return T(x,y)===Core.COMMON;},'#c9d391',cs*.02,cs*.3,0,'rgba(140,150,90,.5)');
+  for(y=0;y<L.h;y++)for(x=0;x<L.w;x++) if(T(x,y)===Core.COMMON){ cell(x,y,7); c.fillStyle='rgba(255,255,255,.85)';
+    for(i=0;i<2;i++){ var sx2=(x+.2+R()*.6)*cs, sy2=(y+.25+R()*.55)*cs; c.beginPath(); c.ellipse(sx2,sy2,cs*.07,cs*.045,0,0,7); c.fill(); } }
+  layer(function(x,y){return T(x,y)===Core.ESTATE;},'#7d9a52',cs*.05,cs*.18,0,'#3f5a2c');
+  for(y=0;y<L.h;y++)for(x=0;x<L.w;x++) if(T(x,y)===Core.ESTATE){ cell(x,y,8);
+    c.strokeStyle='rgba(63,90,44,.55)'; c.lineWidth=Math.max(1,cs*.03); c.setLineDash([cs*.06,cs*.06]); c.strokeRect((x+.12)*cs,(y+.12)*cs,cs*.76,cs*.76); c.setLineDash([]);
+    c.fillStyle='rgba(242,181,69,.9)'; c.font='700 '+Math.round(cs*.26)+'px "Barlow Semi Condensed",Arial,sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('$',(x+.78)*cs,(y+.24)*cs); }
+  layer(function(x,y){return T(x,y)===Core.FOREST;},'#7fa262',cs*.02,cs*.36,.18,null);
+  var trees=[]; for(y=0;y<L.h;y++)for(x=0;x<L.w;x++) if(T(x,y)===Core.FOREST){ cell(x,y,3); for(i=0;i<5;i++) trees.push([(x+.16+R()*.68)*cs,(y+.2+R()*.66)*cs,cs*(.14+R()*.06)]); }
+  trees.sort(function(a,b){return a[1]-b[1];});
+  trees.forEach(function(t){ c.fillStyle='rgba(30,50,30,.3)'; c.beginPath(); c.ellipse(t[0]+t[2]*.3,t[1]+t[2]*.6,t[2],t[2]*.5,0,0,7); c.fill();
+    c.fillStyle='#3d6c45'; c.beginPath(); c.arc(t[0],t[1],t[2],0,7); c.fill(); c.fillStyle='#5f9458'; c.beginPath(); c.arc(t[0]-t[2]*.28,t[1]-t[2]*.3,t[2]*.5,0,7); c.fill(); });
+  c.strokeStyle='rgba(30,40,20,.13)'; c.lineWidth=1; c.beginPath();
+  for(x=1;x<L.w;x++){ c.moveTo(x*cs+.5,0); c.lineTo(x*cs+.5,L.h*cs); } for(y=1;y<L.h;y++){ c.moveTo(0,y*cs+.5); c.lineTo(L.w*cs,y*cs+.5); } c.stroke();
+}
+
+/* ---------- drawing ---------- */
+function top(n){ var cs=V.cs; if(n.kind==='tube'||n.kind==='pump') return [(n.x+.5)*cs,(n.y+.5)*cs]; return [(n.x+.5)*cs,(n.y+.5)*cs-(n.kind==='tower'||n.kind==='station'?.3:.24)*cs]; }
+function drawTower(cx,cy,s,pose,alpha){
+  ctx.save(); ctx.globalAlpha=alpha; ctx.translate(cx,cy); ctx.lineCap='round';
+  ctx.fillStyle='rgba(20,30,20,.3)'; ctx.beginPath(); ctx.ellipse(s*.05,s*.3,s*.24,s*.09,0,0,7); ctx.fill();
+  ctx.fillStyle='#efe6cf'; ctx.strokeStyle='#2a2833'; ctx.lineWidth=Math.max(1,s*.035);
+  ctx.beginPath(); ctx.moveTo(-s*.17,s*.3); ctx.lineTo(-s*.11,-s*.04); ctx.lineTo(s*.11,-s*.04); ctx.lineTo(s*.17,s*.3); ctx.closePath(); ctx.fill(); ctx.stroke();
+  var g=Core.semSegs(pose,s*.26,s*.15), py=-s*.3;
+  [['#f7f1df',s*.13],['#2a2833',s*.065]].forEach(function(p){ ctx.strokeStyle=p[0]; ctx.lineWidth=Math.max(1.5,p[1]);
+    ctx.beginPath(); ctx.moveTo(0,-s*.04); ctx.lineTo(0,py);
+    [g.bar,g.left,g.right].forEach(function(sg){ ctx.moveTo(sg[0][0],sg[0][1]+py); ctx.lineTo(sg[1][0],sg[1][1]+py); }); ctx.stroke(); });
+  ctx.restore();
+}
+function drawTubePiece(cx,cy,s,alpha,kind){ ctx.save(); ctx.globalAlpha=alpha; ctx.translate(cx,cy);
+  if(kind==='pump'){ ctx.fillStyle='rgba(20,30,20,.3)'; ctx.fillRect(-s*.3,-s*.18,s*.66,s*.56);
+    ctx.fillStyle='#9c4a35'; ctx.strokeStyle='#141d2b'; ctx.lineWidth=Math.max(1,s*.035); ctx.fillRect(-s*.32,-s*.2,s*.64,s*.5); ctx.strokeRect(-s*.32,-s*.2,s*.64,s*.5);
+    ctx.fillStyle='#5a2a1f'; ctx.beginPath(); ctx.moveTo(-s*.38,-s*.2); ctx.lineTo(0,-s*.42); ctx.lineTo(s*.38,-s*.2); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#6b3426'; ctx.fillRect(s*.12,-s*.5,s*.1,s*.22); ctx.strokeRect(s*.12,-s*.5,s*.1,s*.22);
+    ctx.fillStyle='#e8c27a'; ctx.fillRect(-s*.08,s*.06,s*.16,s*.24); }
+  else { ctx.fillStyle='#e8c27a'; ctx.strokeStyle='#5a3a1a'; ctx.lineWidth=Math.max(1.5,s*.05); ctx.beginPath(); ctx.arc(0,0,s*.13,0,7); ctx.fill(); ctx.stroke(); }
+  ctx.restore(); }
+function drawPole(cx,cy,s,alpha,kind){
+  if(kind==='tube'||kind==='pump') return drawTubePiece(cx,cy,s,alpha,kind);
+  var rep=kind==='repeater'||kind==='landing', sea=kind==='landing';
+  ctx.save(); ctx.globalAlpha=alpha; ctx.translate(cx,cy); ctx.lineCap='round';
+  if(rep){ ctx.fillStyle='rgba(20,30,20,.3)'; ctx.beginPath(); ctx.ellipse(s*.04,s*.3,s*.26,s*.08,0,0,7); ctx.fill();
+    ctx.fillStyle=sea?'#6fa7c7':'#d9a441'; ctx.strokeStyle='#2a2833'; ctx.lineWidth=Math.max(1,s*.035); ctx.fillRect(-s*.2,s*.02,s*.4,s*.26); ctx.strokeRect(-s*.2,s*.02,s*.4,s*.26);
+    ctx.fillStyle=sea?'#274b66':'#7a4a2a'; ctx.beginPath(); ctx.moveTo(-s*.25,s*.02); ctx.lineTo(0,-s*.12); ctx.lineTo(s*.25,s*.02); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  [['#f7f1df',s*.12],['#4a3423',s*.06]].forEach(function(p){ ctx.strokeStyle=p[0]; ctx.lineWidth=Math.max(1.5,p[1]);
+    ctx.beginPath(); ctx.moveTo(0,rep?-s*.1:s*.24); ctx.lineTo(0,-s*.3); ctx.moveTo(-s*.15,-s*.24); ctx.lineTo(s*.15,-s*.24); if(!rep){ ctx.moveTo(-s*.1,-s*.13); ctx.lineTo(s*.1,-s*.13); } ctx.stroke(); });
+  ctx.restore();
+}
+function drawStation(n,isEnd,label){
+  var cs=V.cs, cx=(n.x+.5)*cs, cy=(n.y+.5)*cs, s=cs;
+  ctx.save(); ctx.translate(cx,cy);
+  ctx.fillStyle='rgba(20,30,20,.3)'; ctx.beginPath(); ctx.ellipse(0,s*.34,s*.42,s*.1,0,0,7); ctx.fill();
+  [[-.3,.06,.26],[.08,.12,.24]].forEach(function(h){ ctx.fillStyle='#efe6cf'; ctx.strokeStyle='#2a2833'; ctx.lineWidth=Math.max(1,s*.03);
+    ctx.fillRect(h[0]*s,h[1]*s,h[2]*s,s*.2); ctx.strokeRect(h[0]*s,h[1]*s,h[2]*s,s*.2);
+    ctx.fillStyle=isEnd?'#b8475f':'#b5622f'; ctx.beginPath(); ctx.moveTo((h[0]-.04)*s,h[1]*s); ctx.lineTo((h[0]+h[2]/2)*s,(h[1]-.15)*s); ctx.lineTo((h[0]+h[2]+.04)*s,h[1]*s); ctx.closePath(); ctx.fill(); ctx.stroke(); });
+  ctx.strokeStyle='#2a2833'; ctx.lineWidth=Math.max(1.5,s*.05); ctx.beginPath(); ctx.moveTo(0,s*.1); ctx.lineTo(0,-s*.36); ctx.stroke();
+  ctx.fillStyle=isEnd?'#d0607f':'#f2b545'; ctx.beginPath(); ctx.moveTo(0,-s*.36); ctx.lineTo(s*.24,-s*.28); ctx.lineTo(0,-s*.2); ctx.closePath(); ctx.fill(); ctx.stroke();
+  label=label||(isEnd?G.def.to:G.def.from); ctx.font='600 '+Math.max(9,Math.round(s*.24))+'px "Barlow Semi Condensed",Arial,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  var tw=ctx.measureText(label).width+s*.2, ly=(n.y===G.L.h-1?-s*.62:s*.6), W=G.L.w*cs, lx=clamp(cx,tw/2+2,W-tw/2-2)-cx;
+  ctx.fillStyle='rgba(20,29,43,.88)'; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(lx-tw/2,ly-s*.16,tw,s*.32,s*.08); else ctx.rect(lx-tw/2,ly-s*.16,tw,s*.32); ctx.fill();
+  ctx.fillStyle='#efe7d2'; ctx.fillText(label,lx,ly+1); ctx.restore();
+}
+function linkLine(a,b,type){ var cs=V.cs, ctr=function(n){ return [(n.x+.5)*cs,(n.y+.5)*cs]; }, p=type==='tube'?ctr(a):top(a), q=type==='tube'?ctr(b):top(b); ctx.beginPath(); ctx.moveTo(p[0],p[1]);
+  if(type==='wire'){ var d=Math.hypot(q[0]-p[0],q[1]-p[1]); ctx.quadraticCurveTo((p[0]+q[0])/2,(p[1]+q[1])/2+d*.1,q[0],q[1]); } else ctx.lineTo(q[0],q[1]); }
+function draw(){
+  var L=G.L, cs=V.cs, ev=G.ev, N=ev.net.nodes, d=G.def, now=performance.now(), W=L.w*cs, H=L.h*cs, i;
+  ctx.setTransform(V.dpr,0,0,V.dpr,0,0); ctx.clearRect(0,0,W,H); ctx.drawImage(V.terrain,0,0,W,H);
+  ctx.lineCap='round';
+  ev.net.links.forEach(function(l,li){ var r=G.lstat[li], risk=l.risk.length&&d.mist, a=N[l.i], b=N[l.j];
+    var col=r===2?(risk?'#ff9db5':'#f2b545'):r===1?'#d0607f':null;
+    if(l.type==='tube'){ ctx.setLineDash([]); ctx.lineCap='round'; ctx.strokeStyle='#5a3a1a'; ctx.lineWidth=cs*.34; linkLine(a,b,'tube'); ctx.stroke();
+      ctx.strokeStyle=r===2?'#e0a94c':r===1?'#d0607f':'#a07a4a'; ctx.lineWidth=cs*.22; linkLine(a,b,'tube'); ctx.stroke(); return; }
+    if(l.type==='cable'){ ctx.setLineDash([]); ctx.strokeStyle='rgba(20,29,43,.9)'; ctx.lineWidth=cs*.16; linkLine(a,b); ctx.stroke();
+      ctx.strokeStyle=col||'#b9d6e4'; ctx.setLineDash(r===2?[]:[cs*.18,cs*.14]); ctx.lineWidth=Math.max(2,cs*.07); linkLine(a,b); ctx.stroke(); ctx.setLineDash([]); return; }
+    if(l.type==='wire'){ ctx.setLineDash(r===1?[cs*.1,cs*.1]:[]); if(r===2){ ctx.strokeStyle='rgba(20,29,43,.85)'; ctx.lineWidth=cs*.11; linkLine(a,b,'wire'); ctx.stroke(); }
+      ctx.strokeStyle=col||'rgba(42,40,51,.75)'; ctx.lineWidth=Math.max(1.2,cs*(r?.05:.03)); linkLine(a,b,'wire'); ctx.stroke(); }
+    else { if(r===2){ ctx.setLineDash([]); ctx.strokeStyle='rgba(20,29,43,.8)'; ctx.lineWidth=cs*.13; linkLine(a,b); ctx.stroke(); }
+      ctx.setLineDash(r===2&&!risk?[]:[cs*.14,cs*.12]); ctx.strokeStyle=col||(risk?'rgba(160,50,80,.7)':'rgba(30,42,66,.5)');
+      ctx.lineWidth=Math.max(1.5,cs*(r?.06:.035)); linkLine(a,b); ctx.stroke(); } });
+  ctx.setLineDash([]);
+  var gh=G.ghost;
+  if(gh&&gh.cable&&G.phase==='plan'){ if(gh.from.kind){ var cp=top(gh.from), cq=gh.to?top(gh.to):[(gh.x+.5)*cs,(gh.y+.5)*cs];
+      ctx.setLineDash([]); ctx.strokeStyle='rgba(20,29,43,.85)'; ctx.lineWidth=cs*.16; ctx.beginPath(); ctx.moveTo(cp[0],cp[1]); ctx.lineTo(cq[0],cq[1]); ctx.stroke();
+      ctx.strokeStyle=gh.valid?'#b6f5a8':gh.to?'#ff9db5':'#efe7d2'; ctx.lineWidth=Math.max(2,cs*.07); ctx.setLineDash(gh.valid?[]:[cs*.16,cs*.12]); ctx.stroke(); ctx.setLineDash([]);
+      if(gh.bx!==undefined){ var kx=(gh.bx+.5)*cs, ky=(gh.by+.5)*cs; ctx.strokeStyle='rgba(200,50,80,.95)'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(kx-cs*.16,ky-cs*.16); ctx.lineTo(kx+cs*.16,ky+cs*.16); ctx.moveTo(kx+cs*.16,ky-cs*.16); ctx.lineTo(kx-cs*.16,ky+cs*.16); ctx.stroke(); } } }
+  else if(gh&&G.phase==='plan'){ var gx=(gh.x+.5)*cs, gy=(gh.y+.5)*cs, valid=gh.valid;
+    ctx.strokeStyle=valid?'rgba(255,255,255,.9)':'rgba(208,96,127,.95)'; ctx.lineWidth=2; ctx.strokeRect(gh.x*cs+1,gh.y*cs+1,cs-2,cs-2);
+    if(valid){ var gn={x:gh.x,y:gh.y,kind:gh.kind}, rr=(gh.kind!=='tower'?Core.WIRE_R:Core.OPT_R+Core.ground(L,gn))*cs;
+      ctx.setLineDash([6,6]); ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(gx,gy,rr,0,7); ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,.07)'; ctx.fill();
+      N.forEach(function(n){ var l=Core.link(L,gn,n); if(!l) return;
+        if(l.type==='blocked'){ var bx=(l.bx+.5)*cs, by=(l.by+.5)*cs; ctx.setLineDash([4,5]); ctx.strokeStyle='rgba(200,50,80,.95)'; ctx.lineWidth=2;
+          ctx.beginPath(); ctx.moveTo(gx,gy-cs*.3); ctx.lineTo(bx,by); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth=3;
+          ctx.beginPath(); ctx.moveTo(bx-cs*.14,by-cs*.14); ctx.lineTo(bx+cs*.14,by+cs*.14); ctx.moveTo(bx+cs*.14,by-cs*.14); ctx.lineTo(bx-cs*.14,by+cs*.14); ctx.stroke(); }
+        else { ctx.setLineDash([]); ctx.strokeStyle='rgba(20,29,43,.7)'; ctx.lineWidth=cs*.1; linkLine(gn,n,l.type); ctx.stroke();
+          ctx.strokeStyle='#b6f5a8'; ctx.lineWidth=Math.max(2,cs*.05); linkLine(gn,n,l.type); ctx.stroke(); } });
+      ctx.setLineDash([]); }
+    else { ctx.strokeStyle='rgba(208,96,127,.95)'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(gx-cs*.2,gy-cs*.2); ctx.lineTo(gx+cs*.2,gy+cs*.2); ctx.moveTo(gx+cs*.2,gy-cs*.2); ctx.lineTo(gx-cs*.2,gy+cs*.2); ctx.stroke(); } }
+  var live={}; if(G.sim) ev.paths.forEach(function(p){ if(p.lat<=d.limit&&!(G.sim.mist&&p.risky)) p.nodes.forEach(function(k){ live[k]=1; }); });
+  G.structs.map(function(s,k){return [s,k];}).sort(function(a,b){return a[0].y-b[0].y;}).forEach(function(o){ var s=o[0], cx=(s.x+.5)*cs, cy=(s.y+.5)*cs;
+    if(s.kind==='tower') drawTower(cx,cy,cs,live[o[1]+ev.net.off]?(Math.floor(now/170)+s.x*3)%26:(s.x*5+s.y*3)%26,1); else drawPole(cx,cy,cs,1,s.kind); });
+  if(G.spans) N.forEach(function(s,k){ var hv=G.spans.h[k], dead=G.spans.dead[k], KK=ev.K; if(k===0||(!dead&&(!isFinite(hv)||s.kind==='tower'||s.kind==='station'||(s.kind==='tube'&&hv<KK-2)))) return;
+    var p=top(s), bx=p[0]+cs*.26, by=p[1]-cs*.12, r=Math.max(7,cs*(dead&&s.kind==='station'?.22:.17));
+    ctx.fillStyle=dead?'#d0607f':!Core.passive(s)?'#86cf96':hv>=KK-1?'#f2b545':'#efe7d2'; ctx.strokeStyle='#141d2b'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(bx,by,r,0,7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#141d2b'; ctx.font='700 '+Math.round(r*1.25)+'px "Barlow Semi Condensed",Arial,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(dead?'\u00d7':!Core.passive(s)?'\u21ba':String(hv),bx,by+1); });
+  drawStation(L.start,false); L.ends.forEach(function(e,i){ drawStation(e,true,townNames(G.def)[i]||('Town '+(i+1))); });
+  if(G.diag&&G.phase==='plan'&&!gh){ var dg=G.diag; ctx.save(); ctx.globalAlpha=.6+.25*Math.sin(now/300);
+    dg.links.forEach(function(li){ var l=ev.net.links[li]; ctx.setLineDash([cs*.16,cs*.12]); ctx.strokeStyle='#ff9db5'; ctx.lineWidth=Math.max(2.5,cs*.08); linkLine(N[l.i],N[l.j],l.type); ctx.stroke(); });
+    ctx.restore(); ctx.setLineDash([]);
+    ctx.font='700 '+Math.max(10,Math.round(cs*.22))+'px "Barlow Semi Condensed",Arial,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    dg.full.forEach(function(k){ var p=top(N[k]), tw=cs*.62, th=Math.max(14,cs*.28), px=p[0], py=p[1]-cs*.42;
+      ctx.fillStyle='#d0607f'; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(px-tw/2,py-th/2,tw,th,th/2); else ctx.rect(px-tw/2,py-th/2,tw,th); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.fillText('FULL',px,py+1); });
+    if(dg.fade>=0){ var fp=top(N[dg.fade]), fr=Math.max(9,cs*.22), fx=fp[0]-cs*.3, fy=fp[1]-cs*.1;
+      ctx.fillStyle='#d0607f'; ctx.strokeStyle='#141d2b'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(fx,fy,fr,0,7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#fff'; ctx.font='700 '+Math.round(fr*1.3)+'px "Barlow Semi Condensed",Arial,sans-serif'; ctx.fillText('\u00d7',fx,fy+1); } }
+  if(gh&&gh.valid&&!gh.cable&&G.phase==='plan'){ if(gh.kind==='tower') drawTower((gh.x+.5)*cs,(gh.y+.5)*cs,cs,4,.75); else drawPole((gh.x+.5)*cs,(gh.y+.5)*cs,cs,.75,gh.kind); }
+  if(G.sim) ev.paths.forEach(function(p,pi){ if(p.lat>d.limit||(G.sim.mist&&p.risky)) return;
+    var pts=p.nodes.map(function(k){ return top(N[k]); }), cyc=clamp(200/p.lat,1.5,5), cnt=Math.max(1,Math.round(p.flow));
+    for(var k=0;k<cnt;k++){ var u=((G.sim.t*cyc+k/cnt+pi*.13)%1)*(pts.length-1), si=Math.min(pts.length-2,Math.floor(u)), f=u-si, mx=pts[si][0]+(pts[si+1][0]-pts[si][0])*f, my=pts[si][1]+(pts[si+1][1]-pts[si][1])*f;
+      var g2=ctx.createRadialGradient(mx,my,0,mx,my,cs*.34); g2.addColorStop(0,'rgba(255,240,170,.95)'); g2.addColorStop(1,'rgba(255,200,80,0)');
+      ctx.fillStyle=g2; ctx.beginPath(); ctx.arc(mx,my,cs*.34,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(mx,my,cs*.07,0,7); ctx.fill(); } });
+  if(d.mist&&G.fogA>.01) for(var k=0;k<L.w*L.h;k++){ if(L.marsh[k]<0) continue; var fx=k%L.w, fy=(k-fx)/L.w;
+    for(i=0;i<2;i++){ var ox=Math.sin(now/1700+k*1.7+i*2.1)*cs*.22, oy=Math.cos(now/2300+k+i)*cs*.12, px=(fx+.5)*cs+ox, py=(fy+.5)*cs+oy;
+      var gr=ctx.createRadialGradient(px,py,0,px,py,cs*.85); gr.addColorStop(0,'rgba(245,248,250,'+(.62*G.fogA)+')'); gr.addColorStop(1,'rgba(245,248,250,0)');
+      ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(px,py,cs*.85,0,7); ctx.fill(); } }
+  if(gh&&G.phase==='plan'){ var txt=gh.text, inf=gh.info||'', f1=Math.max(13,Math.round(cs*.32)), f2=Math.max(11,Math.round(cs*.26));
+    ctx.font='600 '+f1+'px "Barlow Semi Condensed",Arial,sans-serif'; var w1=ctx.measureText(txt).width;
+    ctx.font='500 '+f2+'px "Barlow Semi Condensed",Arial,sans-serif'; var w2=inf?ctx.measureText(inf).width:0;
+    var tw=Math.min(W-8,Math.max(w1,w2)+20), ch=f1*1.5+(inf?f2*1.4:0)+6, cx2=clamp((gh.x+.5)*cs,tw/2+4,W-tw/2-4), cy2=gh.y*cs-ch-cs*.75; if(cy2<4) cy2=(gh.y+1)*cs+cs*.5;
+    ctx.fillStyle='rgba(20,29,43,.95)'; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(cx2-tw/2,cy2,tw,ch,7); else ctx.rect(cx2-tw/2,cy2,tw,ch); ctx.fill();
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font='600 '+f1+'px "Barlow Semi Condensed",Arial,sans-serif'; ctx.fillStyle=gh.valid?'#efe7d2':'#ff9db5'; ctx.fillText(txt,cx2,cy2+3+f1*.75);
+    if(inf){ ctx.font='500 '+f2+'px "Barlow Semi Condensed",Arial,sans-serif'; ctx.fillStyle='#f2b545'; ctx.fillText(inf,cx2,cy2+3+f1*1.5+f2*.7); } }
+}
+
+/* ---------- input ---------- */
+function cellAt(e){ var r=canvas.getBoundingClientRect(); return {x:Math.floor((e.clientX-r.left)/V.cs),y:Math.floor((e.clientY-r.top)/V.cs)}; }
+function structAt(x,y){ for(var i=0;i<G.structs.length;i++) if(G.structs[i].x===x&&G.structs[i].y===y) return G.structs[i]; return null; }
+function pieceInfo(kind,c){ var g=c?Core.ground(G.L,{x:c.x,y:c.y}):0;
+  if(kind==='tower') return '25 s delay · 2 a minute · sees '+(4+g)+' squares'+(g?' (+'+g+' for height)':'');
+  if(kind==='pole') return '1 s delay · 6 a minute · reaches 2 squares';
+  if(kind==='repeater') return '8 s delay · 6 a minute · renews the signal';
+  if(kind==='landing') return '10 s delay · 6 a minute · renews the signal · lands a cable';
+  if(kind==='tube') return '2 s a square, +5 s at a bend · 10 a minute · drag to lay more';
+  if(kind==='pump') return '4 s delay · 10 a minute · renews the air pressure';
+  return ''; }
+function stats(){ return {c:G.ev.cost,l:G.ev.fastest,r:G.ev.rate}; }
+function flash(label,b){ return; var a=stats(), parts=[label+' '+(a.c>=b.c?'+$'+(a.c-b.c):'\u2212$'+(b.c-a.c))];
+  if(a.l!==b.l) parts.push('latency '+(b.l===null?'none':b.l+' s')+' \u2192 '+(a.l===null?'none':a.l+' s'));
+  if(a.r!==b.r) parts.push(fmt(b.r)+' \u2192 '+fmt(a.r)+' a minute');
+  G.flash=['info',parts.shift(),parts.length?parts.join(' · '):'No change to the line.']; G.flashUntil=performance.now()+3000; updateHud(); setTimeout(function(){ if(G) updateHud(); },3100); }
+function setGhost(c,kind){
+  var L=G.L; if(c.x<0||c.y<0||c.x>=L.w||c.y>=L.h){ G.ghost=null; G.dirty=true; return; }
+  var t=Core.typeAt(L,c.x,c.y), st=Core.isStation(L,c.x,c.y), occ=structAt(c.x,c.y), valid=!st&&!occ&&Core.canBuild(L,c.x,c.y,kind);
+  var text=st?'Office':occ?'Already built here':(!valid&&G.def.era===4&&t===Core.FOREST)?'A park: tubes go round it':valid?TNAME[t]+' · $'+Core.cost(L,{x:c.x,y:c.y,kind:kind}):(kind==='landing'&&t<=2?'A cable station must stand on the coast':WHYNOT[t]);
+  G.ghost={x:c.x,y:c.y,kind:kind,valid:valid,text:text,info:valid?pieceInfo(kind,c):''}; G.dirty=true;
+}
+function snapshot(){ return JSON.stringify({s:G.structs,c:G.cables}); }
+function touches(c,s){ return (c.a.x===s.x&&c.a.y===s.y)||(c.b.x===s.x&&c.b.y===s.y); }
+function cableIndex(a,b){ for(var i=0;i<G.cables.length;i++) if(touches(G.cables[i],a)&&touches(G.cables[i],b)) return i; return -1; }
+function cableGhost(c){ var from=G.drag.cable, t=structAt(c.x,c.y), g={cable:true,from:from,x:c.x,y:c.y,valid:false,text:'Drag to another cable station'};
+  if(t&&t.kind==='landing'&&t!==from){ var l=Core.cable(G.L,from,t); g.to=t;
+    if(cableIndex(from,t)>=0){ g.valid=true; g.text='Release to take up this cable'; }
+    else if(l.bad){ g.text=l.bad==='long'?'Too far: a cable reaches '+Core.CABLE_MAX+' squares':l.bad==='short'?'Too close for a cable: wire will do':'Land in the way'; if(l.bad==='land'){ g.bx=l.bx; g.by=l.by; } }
+    else { g.valid=true; g.text='Cable · $'+l.cost+' · '+l.lat+' s · '+l.cap+' a minute'; } }
+  G.ghost=g; G.dirty=true; }
+canvas.addEventListener('pointerdown',function(e){ if(!G||G.phase!=='plan') return; e.preventDefault(); ac();
+  try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+  var c=cellAt(e), s=structAt(c.x,c.y), before=stats();
+  if(G.tool==='tube'&&(!s||s.kind==='tube')){ G.drag={paint:true,start:s,last:c,moved:false,before:before,snap:snapshot(),placed:0};
+    if(!s) paintTube(c); if(G.drag.placed) replan(); else if(!s){ setGhost(c,'tube'); } return; }
+  if(G.tool==='cable'){ if(s&&s.kind==='landing'){ G.drag={cable:s,before:before}; cableGhost(c); } else { G.drag={none:true}; G.ghost={cable:true,from:c,x:c.x,y:c.y,valid:false,text:'Start the cable at a cable station'}; G.dirty=true; } return; }
+  if(s){ G.history.push(snapshot()); G.structs.splice(G.structs.indexOf(s),1); G.drag={before:before,moving:s,moved:false,kind:s.kind,cables:G.cables.filter(function(k){ return touches(k,s); })};
+    G.cables=G.cables.filter(function(k){ return !touches(k,s); }); replan(); }
+  else G.drag={kind:G.tool,before:before};
+  setGhost(c,G.drag.kind); if(G.drag.moving&&G.ghost){ G.ghost.valid=true; var sw=G.tool!==s.kind&&G.tool!=='cable'&&Core.canBuild(G.L,s.x,s.y,G.tool); G.drag.swap=sw;
+    G.ghost.text=KNAME[s.kind]+' · $'+Core.cost(G.L,s)+(sw?' · tap to swap for a '+KNAME[G.tool].toLowerCase()+' ($'+Core.cost(G.L,{x:s.x,y:s.y,kind:G.tool})+')':(G.tool!==s.kind&&G.tool!=='cable'?' · a '+KNAME[G.tool].toLowerCase()+' cannot stand on '+TNAME[Core.typeAt(G.L,s.x,s.y)].toLowerCase()+' · tap removes it':' · tap to remove, drag to move')); G.ghost.info=pieceInfo(s.kind,s); } });
+function paintTube(c){ if(!Core.canBuild(G.L,c.x,c.y,'tube')||structAt(c.x,c.y)) return false; G.structs.push({x:c.x,y:c.y,kind:'tube'}); G.drag.placed++; return true; }
+canvas.addEventListener('pointermove',function(e){ if(!G||G.phase!=='plan'||!G.drag) return; var c=cellAt(e);
+  if(G.drag.paint){ var l=G.drag.last; if(l.x===c.x&&l.y===c.y) return; G.drag.moved=true; G.ghost=null; var p={x:l.x,y:l.y}, any=false, guard=0;
+    while((p.x!==c.x||p.y!==c.y)&&guard++<80){ if(p.x!==c.x) p.x+=c.x>p.x?1:-1; else p.y+=c.y>p.y?1:-1; if(paintTube({x:p.x,y:p.y})) any=true; }
+    G.drag.last=c; if(any){ sfx.tick&&sfx.tick(); replan(); } else G.dirty=true; return; }
+  if(G.drag.none) return; if(G.drag.cable){ cableGhost(c); return; }
+  if(G.ghost&&c.x===G.ghost.x&&c.y===G.ghost.y) return;
+  if(G.drag.moving) G.drag.moved=true; setGhost(c,G.drag.kind); });
+function endDrag(e,cancel){ if(!G||G.phase!=='plan'||!G.drag) return; var d=G.drag, gh=G.ghost; G.drag=null; G.ghost=null;
+  if(d.none){ if(!cancel) sfx.bad(); G.dirty=true; return; }
+  if(d.paint){ if(!d.moved&&d.start&&!cancel){ G.history.push(d.snap); G.structs.splice(G.structs.indexOf(d.start),1); sfx.remove(); }
+    else if(d.placed){ G.history.push(d.snap); sfx.place(); } else if(!cancel&&!d.start) sfx.bad();
+    replan(); return; }
+  if(d.cable){ if(!cancel&&gh&&gh.valid&&gh.to){ G.history.push(snapshot()); var k=cableIndex(d.cable,gh.to);
+      if(k>=0){ G.cables.splice(k,1); sfx.remove(); replan(); flash('Cable taken up',d.before); return; } else { G.cables.push({a:{x:d.cable.x,y:d.cable.y},b:{x:gh.to.x,y:gh.to.y}}); sfx.place(); replan(); flash('Cable laid',d.before); return; } }
+    else if(!cancel&&gh&&gh.to) sfx.bad();
+    replan(); return; }
+  if(d.moving){ if(!d.moved&&!cancel&&d.swap){ G.structs.push({x:d.moving.x,y:d.moving.y,kind:G.tool}); sfx.place(); replan(); flash(KNAME[d.kind]+' swapped for '+KNAME[G.tool].toLowerCase(),d.before); return; }
+    if(!d.moved&&!cancel){ sfx.remove(); replan(); flash(KNAME[d.kind]+' removed',d.before); return; }
+    else if(!cancel&&gh&&gh.valid){ G.structs.push({x:gh.x,y:gh.y,kind:d.kind}); sfx.place(); }
+    else { G.structs.push(d.moving); G.cables=G.cables.concat(d.cables||[]); G.history.pop(); if(!cancel) sfx.bad(); } }
+  else if(!cancel&&gh){ if(gh.valid){ G.history.push(snapshot()); G.structs.push({x:gh.x,y:gh.y,kind:d.kind}); sfx.place(); replan(); flash(KNAME[d.kind]+' placed',d.before); return; } else sfx.bad(); }
+  replan(); }
+canvas.addEventListener('pointerdown',function(){ $('#dispatch').classList.add('dim'); },true);
+function undim(){ $('#dispatch').classList.remove('dim'); }
+window.addEventListener('pointerup',undim); window.addEventListener('pointercancel',undim);
+canvas.addEventListener('pointerup',function(e){ endDrag(e,false); });
+canvas.addEventListener('pointercancel',function(e){ endDrag(e,true); });
+
+/* ---------- send: traffic runs on the finished line ---------- */
+function anim(ms,fn){ var g=G; return new Promise(function(res){ var t0=performance.now();
+  (function step(){ if(G!==g) return res(false); var t=Math.min(1,(performance.now()-t0)/ms); fn(t); g.dirty=true; if(t<1) requestAnimationFrame(step); else res(true); })(); }); }
+async function send(){
+  var g=G; if(!g||g.phase!=='plan'||!contractOk()) return;
+  ac(); g.phase='sim'; g.ghost=null; setPhaseUI(); g.sim={t:0,mist:false};
+  var d=g.def, open='Carrying <b>'+fmt(g.ev.rate)+'</b> messages a minute to '+d.to+'.', beat=-1; setStatus(open,'Line open','good');
+  if(!(await anim(d.mist?6500:3800,function(t){ g.sim.t=t; var m=d.mist>0&&t>.3&&t<.3+d.mist*.9;
+    if(m!==g.sim.mist){ g.sim.mist=m; if(m) setStatus('Low lines across the marsh are waiting for it to lift.','Mist','warn'); else setStatus(open,'Line open','good'); }
+    var b=Math.floor(t*14); if(b!==beat){ beat=b; sfx.hop(); } }))) return;
+  g.sim=null;
+  if(S.mode==='engineer') finish(true); else startDecode();
+}
+function startDecode(){
+  var g=G; g.phase='decode'; g.dec={i:0,wrong:0,max:3,t:g.def.decode||0}; sfx.ok();
+  setStatus('A message for '+g.def.to+'. Read it off the line.','Incoming','info');
+  var op=S.mode==='operator', era=g.def.era, h='';
+  for(var i=0;i<26;i++){ var ch=String.fromCharCode(65+i); h+='<button class="k" data-key="'+ch+'">'+(op?(era===1?semSVG(i):morseHTML(ch,'mc')):'')+ch+'</button>'; }
+  h+='<span></span>'; $('#keys').innerHTML=h; $('#replay').hidden=era<2; $('#dtimer').hidden=!g.def.decode; $('#decode').hidden=false; showSymbol();
+}
+function showSymbol(){
+  var g=G, w=g.word, i=g.dec.i, ch=w[i], box=$('#sigbox'), s='';
+  for(var k=0;k<w.length;k++) s+='<span class="'+(k===i?'cur':'')+'">'+(k<i?w[k]:'')+'</span>';
+  $('#slots').innerHTML=s+'<em>Letter '+(i+1)+' of '+w.length+' · errors '+g.dec.wrong+' of '+g.dec.max+'</em>';
+  g.dec.t=g.def.decode||0;
+  box.classList.remove('pop'); void box.offsetWidth;
+  if(g.def.era===1) box.innerHTML=semSVG(ch.charCodeAt(0)-65);
+  else { box.innerHTML='<div class="tapewrap"><div class="lamp" id="lamp"></div>'+(S.mode==='expert'?'':morseHTML(ch,'tape'))+'</div>'; playMorse(ch,wpmFor(g.def)); }
+  box.classList.add('pop');
+}
+function miss(btn){ var g=G; g.dec.wrong++; sfx.bad(); if(btn){ btn.classList.remove('bad'); void btn.offsetWidth; btn.classList.add('bad'); }
+  if(g.dec.wrong>=g.dec.max) finish(false); else showSymbol(); }
+function keyPress(btn){
+  var g=G; if(!g||g.phase!=='decode') return;
+  if(btn.dataset.key===g.word[g.dec.i]){ g.dec.i++; sfx.ok(); if(g.dec.i>=g.word.length){ $('#slots').innerHTML=g.word.split('').map(function(c){return '<span>'+c+'</span>';}).join(''); finish(true); } else showSymbol(); }
+  else miss(btn);
+}
+async function finish(ok){
+  var g=G; if(!g||g.phase==='done') return; g.phase='done'; g.sim=null; lampTimers.forEach(clearTimeout);
+  var ev=g.ev, stars=0, d=g.def;
+  if(ok){ stars=starsFor(ev.cost); var store=g.idx>=0?S.progress:S.cprog, pk=g.idx>=0?LEVELS[g.idx].name:g.cid, p=(pk!=null&&store[pk])||{stars:0,mode:0}, mi=MODES.indexOf(S.mode);
+    if(pk!=null) store[pk]={stars:Math.max(p.stars||0,stars),mode:Math.max(p.mode||0,mi)}; save(); sfx.win(); setStatus(townNames(d).join(' and ')+(townNames(d).length>1?' are':' is')+' on the line.','Contract complete','good'); }
+  else { sfx.lose(); setStatus('Three misreadings.','Message lost','bad'); }
+  await new Promise(function(r){ setTimeout(r,600); }); if(G!==g) return;
+  $('#decode').hidden=true;
+  var last=g.idx<0||g.idx===LEVELS.length-1;
+  var facts='<div class="facts"><div><small>Latency</small>'+ev.fastest+' s of '+d.limit+'</div><div><small>Messages a minute</small>'+fmt(ev.rate)+' of '+d.need+'</div>'+
+    '<div><small>Spent</small>$'+ev.cost+' of $'+g.budget+'</div><div><small>Best known</small>$'+g.par+'</div>'+(g.dec?'<div><small>Decoding errors</small>'+g.dec.wrong+'</div>':'')+'</div>';
+  if(ok) card('<h4><small>'+townNames(d).join(' and ')+(townNames(d).length>1?' are':' is')+' on the line</small>'+(g.dec?'&ldquo;'+g.word+'&rdquo;':'Contract complete')+'</h4><div class="stars">'+starsHTML(stars)+'</div>'+
+    '<p>'+(stars===3?'As cheap as the best network known'+(ev.cost<g.par?', and $'+(g.par-ev.cost)+' cheaper than that':'')+'.':'Stars are for spending less: three at $'+g.star3+' or under, two at $'+g.star2+'.')+'</p>'+facts+
+    '<div class="acts">'+(last?'':'<button class="btn primary" data-act="next">Next level</button>')+'<button class="btn" data-act="retry">Play again</button>'+menuBtn()+'</div>'+
+    (last&&g.idx>=0?'<p class="m">That was the last line for now. Try it again as '+(S.mode==='expert'?'Expert for three stars throughout':S.mode==='operator'?'Expert':'Operator')+'.</p>':''));
+  else card('<h4><small>'+d.to+' could not read it</small>Message lost</h4><p>The line met its contract, but the message was misread three times. Study the code book, or slow the Morse down in Settings.</p>'+facts+
+    '<div class="acts"><button class="btn primary" data-act="retry">Try again</button><button class="btn" data-act="book">Code book</button>'+menuBtn()+'</div>');
+}
+
+/* ---------- overlays ---------- */
+var cardStack=null;
+function card(html,wide){ var c=$('#card'); c.className='card'+(wide?' wide':''); c.innerHTML=html; $('#overlay').hidden=false; c.scrollTop=0; }
+function closeCard(){ if(cardStack){ var h=cardStack; cardStack=null; card(h[0],h[1]); } else $('#overlay').hidden=true; }
+function pushCard(){ cardStack=(!$('#overlay').hidden&&!cardStack)?[$('#card').innerHTML,$('#card').classList.contains('wide')]:cardStack; }
+function showRules(){ pushCard();
+  card('<h4><small>Reference</small>Rules of the line</h4><ul class="rules">'+
+  '<li><b>The contract</b>: carry the stated messages a minute, each inside the latency limit, without going over budget. Stars are for spending less.</li>'+
+  '<li><b>Latency</b> is the time a message takes on your fastest line: the delays of every piece it passes through, added up. Tower 25 s, pole 1 s, repeater 8 s, cable station 10 s, cable half its length squared.</li>'+
+  '<li><b>Throughput</b>: a line carries what its weakest part carries. Towers 2 a minute; poles, repeaters and stations 6. Parallel lines add up. Lines over the latency limit count for nothing.</li>'+
+  '<li><b>Towers</b> see 4 squares on open ground, plus 1 for each level of height at either end. $100 on the plain, $150 on a hill, $200 on a tall hill.</li>'+
+  '<li><b>Sight</b>: hills block lines that are not above them, trees block lines from the plain, mountains block everything. Water and marsh never block.</li>'+
+  '<li><b>Mist</b> stops low sight lines over marsh for the stated share of the time. Hilltop to hilltop lines pass above it. Wire is unaffected.</li>'+
+  '<li><b>Wire poles</b> link within 2 squares, knight’s move included, with no sight line. $20, $30 on a hill, $45 in forest. Not over mountains.</li>'+
+  '<li><b>Signal fade</b> (from level 10): a signal dies after '+Core.FADE+' spans of wire. Poles show the count. A repeater ($120, +8 s), tower, town or cable station renews it to 0.</li>'+
+  '<li><b>Pneumatic tubes</b> (city levels): drag along streets to lay tube, $30 a square, $80 on a bridge. 2 s a straight square, +5 s at a bend, +3 s at a junction. 10 a minute. Pressure runs out after '+Core.TUBE_K+' squares: a pump ($200, 4 s) renews it.</li>'+
+  '<li><b>Sea cables</b> (ocean levels): cable stations stand on the coast, $150, +10 s. Drag from one to another with the Cable tool. $40 a square, $80 in deep water, up to '+Core.CABLE_MAX+' squares. Delay is half the square of the length; a cable carries 6 a minute up to 6 squares, 4 up to 9, 2 beyond.</li>'+
+  '<li>While you drag, <b>green</b> lines show links that would form and <b>red</b> lines show what blocks the view. Gold lines carry traffic; dashed red lines are too slow.</li></ul>'+
+  '<div class="acts"><button class="btn primary" data-act="close">Close</button></div>',true);
+}
+function showBook(tab){
+  if(G&&G.phase==='decode') return;
+  pushCard(); tab=tab||(G&&G.def.era>=2?2:1); var h='';
+  for(var i=0;i<26;i++){ var ch=String.fromCharCode(65+i); h+='<button class="k" data-play="'+ch+'">'+(tab===1?semSVG(i):morseHTML(ch,'mc'))+ch+'</button>'; }
+  card('<h4><small>Code book</small>'+(tab===1?'Semaphore':'Morse')+'</h4><div class="tabs"><button class="btn" data-act="book1" aria-pressed="'+(tab===1)+'">Semaphore</button><button class="btn" data-act="book2" aria-pressed="'+(tab===2)+'">Morse</button></div>'+
+    '<p class="m">'+(tab===1?'Bar level: A to I. Bar rising to the right: J to R. Bar falling: S to Z. Within each set the left arm steps every three letters and the right arm every letter, in the order up, out, down. This is a simplified code made for the game; the real Chappe system used numbered code books.'
+      :'International Morse. Tap a letter to hear it at '+wpmFor(G&&G.def)+' words a minute. E and T are the shortest; the common letters are worth learning first.')+'</p>'+
+    '<div class="book">'+h+'</div><div class="acts"><button class="btn primary" data-act="close">Close</button></div>',true);
+}
+
+/* ---------- level editor ---------- */
+var E=null, edTimer=null;
+var BRUSH=[['.','Open','#a9bf7e'],['h','Hill','#cfc27f'],['H','Tall hill','#e2c796'],['M','Mountain','#8f867e'],['f','Forest','#3d6c45'],['~','River','#6ea6c4'],['s','Marsh','#7d9c86'],['$','Estate','#7d9a52'],[',','Common','#c9d391'],['#','Building','#a8927a'],['=','Bridge','#cdbb98'],['w','Sea','#5c9cbf'],['W','Deep sea','#3f789e'],['A','Start','#f2b545'],['B','Town','#d0607f'],['C','Town 2','#d0607f'],['D','Town 3','#d0607f']];
+var dlP=(window.claude&&window.claude.use)?window.claude.use('downloads').catch(function(){ return null; }):null;
+function clean(s,n,d){ s=String(s==null?'':s).replace(/[<>&"]/g,'').replace(/\s+/g,' ').trim().slice(0,n); return s||d||''; }
+function validateDef(o){
+  if(!o||typeof o!=='object') throw new Error('This is not a level file.');
+  var m=o.map; if(!Array.isArray(m)||m.length<4||m.length>20) throw new Error('The map needs 4 to 20 rows.');
+  var w=String(m[0]).length, a=0, b=0, nc=0, nd=0; if(w<6||w>30) throw new Error('Map rows need 6 to 30 squares.');
+  m=m.map(function(r,i){ r=String(r); if(r.length!==w) throw new Error('Row '+(i+1)+' is a different length from row 1.');
+    if(!/^[.hHMf~swW#=$,AaBbCcDd]+$/.test(r)) throw new Error('Row '+(i+1)+' has an unknown terrain letter.');
+    a+=(r.match(/[Aa]/g)||[]).length; b+=(r.match(/[Bb]/g)||[]).length; nc+=(r.match(/[Cc]/g)||[]).length; nd+=(r.match(/[Dd]/g)||[]).length; return r; });
+  if(a!==1||b!==1) throw new Error('The map needs exactly one start (A) and one end (B).');
+  if(nc>1||nd>1||(nd&&!nc)) throw new Error('Extra towns: at most one C and one D, and D needs C.');
+  var words=(Array.isArray(o.words)?o.words:String(o.words||'').split(/[\s,]+/)).map(function(x){ return String(x).toUpperCase().replace(/[^A-Z]/g,'').slice(0,10); }).filter(function(x){ return x.length>=2; }).slice(0,12);
+  if(!words.length) words=['SIGNAL'];
+  var era=[1,2,3,4].indexOf(+o.era)>=0?+o.era:1, mist=o.mist&&typeof o.mist==='object'?.4:(+o.mist>0?clamp(+o.mist,.1,.8):0);
+  return {name:clean(o.name,32,'Untitled line'),era:era,from:clean(o.from,16,'Westgate'),to:clean(o.to,16,'Eastgate'),also:[0,1].filter(function(i){ return i<nc+nd; }).map(function(i){ return clean((o.also||[])[i],16,['Northgate','Southgate'][i]); }),
+    need:clamp(Math.round(+o.need||(era>=2?6:2)),1,30),limit:clamp(Math.round(+o.limit||600),10,3600),budgetPct:clamp(+o.budgetPct||1.3,1.05,2),
+    mist:mist,fade:!!o.fade&&era>=2,wpm:clamp(Math.round(+o.wpm||10),5,30),decode:+o.decode>0?clamp(Math.round(+o.decode),3,30):0,
+    words:words,brief:clean(o.brief,400,''),intro:Array.isArray(o.intro)?o.intro.filter(function(k){ return !!INTRO[k]; }).slice(0,4):[],par:+o.par>0?Math.round(+o.par):0,map:m};
+}
+function findCustom(id){ for(var i=0;i<S.custom.length;i++) if(S.custom[i].id===id) return S.custom[i]; return null; }
+function addCustom(def){ var id='c'+Date.now().toString(36)+Math.floor(Math.random()*1296).toString(36); S.custom.push({id:id,def:def}); save(); return id; }
+function createLevel(tpl){ var def;
+  if(tpl!==''&&LEVELS[+tpl]){ def=validateDef(LEVELS[+tpl]); def.name=clean(def.name+' (copy)',32); }
+  else { var m=[]; for(var y=0;y<10;y++) m.push('................'); m[4]='.A............B.'; def=validateDef({map:m,limit:120}); }
+  E=null; openEditor(addCustom(def)); }
+function showNew(){ var o='<option value="">Blank map, 16 by 10</option>'; LEVELS.forEach(function(d,i){ o+='<option value="'+i+'">Copy of '+(i+1)+'. '+d.name+'</option>'; });
+  card('<h4><small>Your levels</small>New level</h4><div class="form"><label class="full" for="newTpl">Start from<select id="newTpl">'+o+'</select></label></div>'+
+    '<div class="acts"><button class="btn primary" data-act="newCreate">Create</button><button class="btn ghost" data-act="close">Cancel</button></div>'); }
+function showImport(){ card('<h4><small>Your levels</small>Import a level</h4><p>Choose a .json file exported from the editor, or paste its contents below.</p>'+
+    '<div class="acts"><label class="btn" for="impFile">Choose file</label><input type="file" id="impFile" accept=".json,application/json" hidden></div>'+
+    '<textarea class="code" id="impText" placeholder="Paste level JSON here" spellcheck="false" aria-label="Level JSON"></textarea><p class="err" id="impMsg"></p>'+
+    '<div class="acts"><button class="btn primary" data-act="impGo">Import</button><button class="btn ghost" data-act="close">Cancel</button></div>'); }
+function doImport(txt){ var msg=$('#impMsg'), o, ids=[];
+  try{ o=JSON.parse(txt); }catch(e){ msg.textContent=txt.trim()?'This is not valid JSON.':'Choose a file or paste the JSON first.'; return; }
+  try{ (Array.isArray(o)?o:[o]).slice(0,30).forEach(function(x){ var d=validateDef(x); d.par=0; ids.push(addCustom(d)); }); }catch(e){ msg.textContent=e.message; return; }
+  if(!ids.length){ msg.textContent='No levels found in this file.'; return; }
+  if(ids.length===1){ E=null; openEditor(ids[0]); } else { $('#overlay').hidden=true; renderMenu(); } }
+document.addEventListener('change',function(e){ if(e.target.id==='setWpm'){ S.wpm=+e.target.value||0; save(); return; }
+  if(e.target.id!=='impFile'||!e.target.files[0]) return; var fr=new FileReader();
+  fr.onload=function(){ if($('#impText')){ $('#impText').value=String(fr.result); doImport(String(fr.result)); } };
+  fr.onerror=function(){ if($('#impMsg')) $('#impMsg').textContent='Could not read that file.'; }; fr.readAsText(e.target.files[0]); });
+
+function edMap(){ return E.grid.map(function(r,y){ return r.map(function(c,x){ if(x===E.start.x&&y===E.start.y) return c==='h'?'a':'A'; if(x===E.end.x&&y===E.end.y) return c==='h'?'b':'B';
+  for(var q in E.extra){ var p=E.extra[q]; if(p&&p.x===x&&p.y===y) return c==='h'?q.toLowerCase():q; } return c; }).join(''); }); }
+function townAt(x,y){ if(x===E.start.x&&y===E.start.y) return 'A'; if(x===E.end.x&&y===E.end.y) return 'B'; for(var q in E.extra){ var p=E.extra[q]; if(p&&p.x===x&&p.y===y) return q; } return ''; }
+function edTitle(){ $('#lvTitle').innerHTML='<small>Level editor · '+E.w+' by '+E.h+'</small>'+E.def.name; }
+function edBrushes(){ var h=''; BRUSH.forEach(function(b){ h+='<button class="btn brush" data-brush="'+b[0]+'" aria-pressed="'+(E.brush===b[0])+'"><i style="background:'+b[2]+'"></i>'+b[1]+'</button>'; });
+  $('#brushes').innerHTML=h; $('#edBest').setAttribute('aria-pressed',E.showBest?'true':'false'); $('#edUndo').disabled=!E.hist.length; }
+function openEditor(id){ var en=findCustom(id); if(!en){ E=null; return openMenu(); }
+  var d=JSON.parse(JSON.stringify(en.def)), grid=[], st, ed, keep=E&&E.id===id?E:null;
+  var ex={C:null,D:null};
+  d.map.forEach(function(r,y){ grid.push(r.split('').map(function(c,x){ if(c==='A'||c==='a'){ st={x:x,y:y}; return c==='a'?'h':'.'; } if(c==='B'||c==='b'){ ed={x:x,y:y}; return c==='b'?'h':'.'; }
+    if('CcDd'.indexOf(c)>=0){ ex[c.toUpperCase()]={x:x,y:y}; return c===c.toLowerCase()?'h':'.'; } return c; })); });
+  E={id:id,def:d,w:grid[0].length,h:grid.length,grid:grid,start:st,end:ed,extra:ex,hist:keep?keep.hist:[],brush:keep?keep.brush:'h',showBest:keep?keep.showBest:true,snap:null,painting:false,last:null,par:Infinity,changed:false};
+  G={idx:-1,def:d,L:Core.parse(d.map),structs:[],cables:[],history:[],phase:'edit',ghost:null,drag:null,sim:null,fogA:0,budget:0,star2:0,star3:0,dirty:true,seed:4242,edMsg:'Checking…'};
+  setEv(); cardStack=null; lampTimers.forEach(clearTimeout);
+  $('#overlay').hidden=true; $('#menu').hidden=true; $('#game').hidden=false; $('#decode').hidden=true;
+  edTitle(); edBrushes(); setPhaseUI(); resize(); updateHud(); clearTimeout(edTimer); edTimer=setTimeout(edSolve,30); }
+function edPersist(){ if(!E) return; var en=findCustom(E.id); if(!en) return; en.def=JSON.parse(JSON.stringify(E.def)); if(E.changed){ delete S.cprog[E.id]; E.changed=false; } save(); }
+function edChanged(){ E.def.map=edMap(); E.def.par=0; E.changed=true; G.def=E.def; G.L=Core.parse(E.def.map); G.structs=[]; G.cables=[]; G.budget=0; setEv(); paintTerrain();
+  G.edMsg='Checking…'; updateHud(); $('#edUndo').disabled=!E.hist.length; clearTimeout(edTimer); edTimer=setTimeout(edSolve,350); }
+function edSolve(){ clearTimeout(edTimer); edTimer=null; if(!E||!G||G.phase!=='edit') return;
+  var d=E.def, r=Core.solve(G.L,d), ok=isFinite(r.cost);
+  E.par=r.cost; d.par=ok?r.cost:0; G.def=d;
+  if(!ok){ G.structs=[]; G.cables=[]; G.budget=0; G.edMsg='<span class="w"><b>No network found for this contract.</b></span> '+(r.fastLat===null?'There is no way through at all: add high ground or narrow a gap'+(d.era===1?', or switch to the electric telegraph.':'.'):
+      r.fastLat>d.limit?'The fastest possible line takes '+r.fastLat+' s. Raise the latency limit in Settings.':'One line is possible ('+r.fastLat+' s) but not '+d.need+' a minute. Lower the target or leave room for parallel lines.'); }
+  else { G.budget=ceil10(r.cost*d.budgetPct); G.star3=ceil10(r.cost); G.star2=ceil10(r.cost+(G.budget-r.cost)/2); G.structs=E.showBest?r.structs:[]; G.cables=E.showBest?r.cables:[];
+    G.edMsg='<b>Solvable.</b> Best network found $'+r.cost+' with '+(r.structs.length+r.cables.length)+' pieces · player budget $'+G.budget+' · fastest possible line '+r.fastLat+' s'; }
+  $('#edTest').disabled=!ok; setEv(); updateHud(); edPersist(); }
+function edSnap(){ return JSON.stringify({g:E.grid,s:E.start,e:E.end,x:E.extra}); }
+function edPush(snap){ E.hist.push(snap); if(E.hist.length>60) E.hist.shift(); }
+function edPaint(e){ var c=cellAt(e), l=E.last||c, n=Math.max(Math.abs(c.x-l.x),Math.abs(c.y-l.y)), ch=false, st='ABCD'.indexOf(E.brush)>=0;
+  for(var i=(E.last&&!st?1:n);i<=n;i++){ var u=n?i/n:1; if(edCell({x:Math.round(l.x+(c.x-l.x)*u),y:Math.round(l.y+(c.y-l.y)*u)})) ch=true; }
+  if(!n&&!E.last&&!st&&edCell(c)) ch=true;
+  E.last=c; if(ch) edChanged(); }
+function edCell(c){ if(c.x<0||c.y<0||c.x>=E.w||c.y>=E.h) return false; var b=E.brush;
+  var here=townAt(c.x,c.y), onS=here==='A', onE=here==='B';
+  if('ABCD'.indexOf(b)>=0){ if(here) return false; if(b==='D'&&!E.extra.C) b='C'; if(E.snap){ edPush(E.snap); E.snap=null; }
+    if(b==='A'||b==='B'){ var me=b==='A'?E.start:E.end; me.x=c.x; me.y=c.y; } else E.extra[b]={x:c.x,y:c.y};
+    if(E.grid[c.y][c.x]!=='h') E.grid[c.y][c.x]='.'; }
+  else { if((onS||onE)&&b!=='.'&&b!=='h') return false;
+    if((here==='C'||here==='D')&&b!=='.'&&b!=='h'){ if(E.snap){ edPush(E.snap); E.snap=null; } E.extra[here]=null; if(here==='C'&&E.extra.D){ E.extra.C=E.extra.D; E.extra.D=null; } } if(E.grid[c.y][c.x]===b) return false; if(E.snap){ edPush(E.snap); E.snap=null; } E.grid[c.y][c.x]=b; }
+  return true; }
+function edUndo(){ if(!E.hist.length) return; var o=JSON.parse(E.hist.pop()), sz=o.g.length!==E.h||o.g[0].length!==E.w;
+  E.grid=o.g; E.start=o.s; E.end=o.e; E.extra=o.x||{C:null,D:null}; E.h=o.g.length; E.w=o.g[0].length; sfx.remove(); edChanged(); if(sz){ edTitle(); resize(); } }
+function edResize(w,h){ w=clamp(w,8,28); h=clamp(h,6,18); if(w===E.w&&h===E.h) return; edPush(edSnap());
+  var g=[], x, y; for(y=0;y<h;y++){ g.push([]); for(x=0;x<w;x++) g[y].push(y<E.h&&x<E.w?E.grid[y][x]:'.'); }
+  E.grid=g; E.w=w; E.h=h; [E.start,E.end].forEach(function(p){ p.x=Math.min(p.x,w-1); p.y=Math.min(p.y,h-1); });
+  ['C','D'].forEach(function(q){ var p=E.extra[q]; if(p&&(p.x>=w||p.y>=h)) E.extra[q]=null; }); if(!E.extra.C&&E.extra.D){ E.extra.C=E.extra.D; E.extra.D=null; }
+  if(E.start.x===E.end.x&&E.start.y===E.end.y) E.start.x=E.end.x>0?E.end.x-1:1;
+  [E.start,E.end].forEach(function(p){ if(g[p.y][p.x]!=='h') g[p.y][p.x]='.'; });
+  edChanged(); edTitle(); resize(); }
+canvas.addEventListener('pointerdown',function(e){ if(!G||G.phase!=='edit'||!E) return; e.preventDefault(); try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+  E.snap=edSnap(); E.painting=true; E.last=null; edPaint(e); });
+canvas.addEventListener('pointermove',function(e){ if(G&&G.phase==='edit'&&E&&E.painting) edPaint(e); });
+function edStop(){ if(E){ E.painting=false; E.snap=null; E.last=null; } }
+canvas.addEventListener('pointerup',edStop); canvas.addEventListener('pointercancel',edStop);
+
+function opts(list,cur){ var h='', seen=false; list.forEach(function(o){ var s=String(o[0])===String(cur); if(s) seen=true; h+='<option value="'+o[0]+'"'+(s?' selected':'')+'>'+o[1]+'</option>'; });
+  return (seen?'':'<option value="'+cur+'" selected>'+cur+' (custom)</option>')+h; }
+function showEdSettings(){ var d=E.def;
+  card('<h4><small>Level editor</small>Settings</h4><div class="form">'+
+    '<label class="full" for="f-name">Level name<input id="f-name" data-f="name" maxlength="32" value="'+d.name+'"></label>'+
+    '<label for="f-from">Start town<input id="f-from" data-f="from" maxlength="16" value="'+d.from+'"></label>'+
+    '<label for="f-to">End town<input id="f-to" data-f="to" maxlength="16" value="'+d.to+'"></label>'+
+    (E.extra.C?'<label for="f-to2">Town 2<input id="f-to2" data-f="to2" maxlength="16" value="'+((d.also||[])[0]||'Northgate')+'"></label>':'')+
+    (E.extra.D?'<label for="f-to3">Town 3<input id="f-to3" data-f="to3" maxlength="16" value="'+((d.also||[])[1]||'Southgate')+'"></label>':'')+
+    '<label class="full" for="f-era">Telegraph<select id="f-era" data-f="era">'+opts([[1,'Optical: towers only, semaphore code'],[2,'Electric: towers and wire poles, Morse code'],[3,'Submarine: wire, cable stations and sea cables'],[4,'Pneumatic: tubes under the streets (fading on = pumps)']],d.era)+'</select></label>'+
+    '<label for="f-need">Messages a minute<select id="f-need" data-f="need">'+opts([[1,'1 · each of several towns'],[2,'2 · one tower line'],[3,'3'],[4,'4 · two tower lines'],[6,'6 · one wire'],[8,'8'],[12,'12 · two wires'],[18,'18 · three wires']],d.need)+'</select></label>'+
+    '<label for="f-limit">Latency limit, seconds<input id="f-limit" data-f="limit" type="number" inputmode="numeric" min="10" max="3600" step="5" value="'+d.limit+'"></label>'+
+    '<label for="f-pct">Budget over the best network<select id="f-pct" data-f="budgetPct">'+opts([[1.5,'+50% · relaxed'],[1.35,'+35% · generous'],[1.25,'+25% · standard'],[1.15,'+15% · tight'],[1.1,'+10% · severe']],d.budgetPct)+'</select></label>'+
+    '<label for="f-mist">Mist over marsh<select id="f-mist" data-f="mist">'+opts([[0,'Never'],[.25,'25% of the time'],[.4,'40% of the time'],[.5,'Half the time']],d.mist)+'</select></label>'+
+    '<label for="f-fade">Wire signal fading<select id="f-fade" data-f="fade">'+opts([[0,'Off · no repeaters'],[1,'On · repeater every '+Core.FADE+' spans']],d.fade?1:0)+'</select></label>'+
+    '<label for="f-wpm">Morse speed<select id="f-wpm" data-f="wpm">'+opts([[6,'6 wpm'],[8,'8 wpm'],[10,'10 wpm'],[12,'12 wpm'],[14,'14 wpm'],[16,'16 wpm'],[18,'18 wpm'],[22,'22 wpm']],d.wpm)+'</select></label>'+
+    '<label for="f-dec">Decoding time per letter<select id="f-dec" data-f="decode">'+opts([[0,'Untimed'],[12,'12 s'],[10,'10 s'],[8,'8 s'],[6,'6 s'],[4,'4 s']],d.decode)+'</select></label>'+
+    '<div class="fld">Map width<div class="step"><button class="icon" data-size="w-" aria-label="Narrower">&minus;</button><b id="szW">'+E.w+'</b><button class="icon" data-size="w+" aria-label="Wider">+</button></div></div>'+
+    '<div class="fld">Map height<div class="step"><button class="icon" data-size="h-" aria-label="Shorter">&minus;</button><b id="szH">'+E.h+'</b><button class="icon" data-size="h+" aria-label="Taller">+</button></div></div>'+
+    '<label class="full" for="f-words">Messages, separated by commas. One is picked each play.<input id="f-words" data-f="words" value="'+d.words.join(', ')+'" autocapitalize="characters" spellcheck="false"></label>'+
+    '<label class="full" for="f-brief">Briefing shown before the level<textarea id="f-brief" data-f="brief" maxlength="400">'+d.brief+'</textarea></label></div>'+
+    '<p class="m">The editor searches for the cheapest network that meets your contract and sets the player’s budget from it. The status line shows the fastest possible line, which is the lowest latency limit that can work. The map grows and shrinks at its right and bottom edges.</p>'+
+    '<div class="acts"><button class="btn primary" data-act="edApply">Done</button><button class="btn ghost" data-act="edDelete">Delete level</button></div>',true); }
+function edApplySettings(){ var q=function(k){ return $('[data-f="'+k+'"]').value; };
+  E.def=validateDef({name:q('name'),from:q('from'),to:q('to'),also:[$('[data-f="to2"]')?q('to2'):'',$('[data-f="to3"]')?q('to3'):''],era:+q('era'),need:+q('need'),limit:+q('limit'),budgetPct:+q('budgetPct'),mist:+q('mist'),fade:+q('fade')===1,wpm:+q('wpm'),decode:+q('decode'),
+    words:q('words'),brief:q('brief'),intro:E.def.intro,map:edMap()});
+  E.changed=true; G.def=E.def; $('#overlay').hidden=true; edTitle(); G.edMsg='Checking…'; updateHud(); clearTimeout(edTimer); edTimer=setTimeout(edSolve,30); }
+function showExport(){ clearTimeout(edTimer); edSolve(); var d=E.def, o={format:'nightfall-telegraph-level',version:2}, k;
+  for(k in d) if(k!=='intro'||d.intro.length) o[k]=d[k];
+  E.file=(d.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'level')+'.json';
+  card('<h4><small>Export</small>'+E.file+'</h4>'+(isFinite(E.par)?'':'<p class="err">No network was found for this contract yet. You can still export the level and finish it later.</p>')+
+    '<textarea class="code" id="expText" readonly spellcheck="false" aria-label="Level JSON"></textarea><p class="m" id="expMsg">Map letters: . open, h hill, H tall hill, M mountain, f forest, ~ river, s marsh, w sea, W deep sea, # building, = bridge, $ estate, , common land, A start, C and D extra towns, B end (a and b when the town sits on a hill). par is the best network cost the editor found; it is recalculated on import.</p>'+
+    '<div class="acts"><button class="btn primary" data-act="edSave">Save file</button><button class="btn" data-act="edCopy">Copy JSON</button><button class="btn ghost" data-act="close">Close</button></div>',true);
+  $('#expText').value=JSON.stringify(o,null,2); }
+async function edSaveFile(){ var txt=$('#expText').value, fn=E.file, msg=$('#expMsg');
+  if(dlP){ var d=await dlP; if(!d){ msg.textContent='Saving files is not available in this view. Use Copy JSON instead.'; return; }
+    try{ await d.save({filename:fn,data:txt}); msg.textContent='Saved '+fn+'.'; }
+    catch(err){ var c=err&&err.code; msg.textContent=c==='declined'?'Save cancelled.':c==='rate_limited'?'A save prompt is already open. Try again in a moment.':'Could not save a file here. Use Copy JSON instead.'; } }
+  else { try{ var f=new File([txt],fn,{type:'application/json'}); if(navigator.maxTouchPoints>0&&navigator.canShare&&navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); msg.textContent='Shared '+fn+'.'; return; } }
+    catch(e){ if(e&&e.name==='AbortError'){ msg.textContent='Save cancelled.'; return; } }
+    try{ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'})); a.download=fn; document.body.appendChild(a); a.click(); a.remove(); msg.textContent='Saved '+fn+'.'; }
+    catch(e2){ msg.textContent='Could not save a file here. Use Copy JSON instead.'; } } }
+function edCopy(){ var ta=$('#expText'), msg=$('#expMsg'), fail=function(){ ta.focus(); ta.select(); msg.textContent='Copying is blocked here. The text is selected: copy it from the keyboard or the selection menu.'; };
+  try{ navigator.clipboard.writeText(ta.value).then(function(){ msg.textContent='Copied to the clipboard.'; },fail); }catch(e){ fail(); } }
+
+/* ---------- events ---------- */
+document.addEventListener('click',function(e){
+  var b=e.target.closest('button'); if(!b||b.disabled) return; ac();
+  if(b.dataset.mode){ S.mode=b.dataset.mode; save(); renderMenu(); return; }
+  if(b.dataset.level!==undefined){ startLevel(+b.dataset.level); return; }
+  if(b.dataset.custom){ var en=findCustom(b.dataset.custom); if(en&&!startLevel(-1,null,en.def,null,en.id)) card('<h4><small>Your level</small>No network meets this contract</h4><p>Open the level in the editor to fix the map or the contract.</p><div class="acts"><button class="btn primary" data-edit="'+en.id+'">Edit</button><button class="btn ghost" data-act="close">Close</button></div>'); return; }
+  if(b.dataset.edit){ E=null; openEditor(b.dataset.edit); return; }
+  if(b.dataset.brush){ E.brush=b.dataset.brush; edBrushes(); return; }
+  if(b.dataset.size){ edResize(E.w+(b.dataset.size==='w+'?1:b.dataset.size==='w-'?-1:0),E.h+(b.dataset.size==='h+'?1:b.dataset.size==='h-'?-1:0)); $('#szW').textContent=E.w; $('#szH').textContent=E.h; return; }
+  if(b.dataset.tool){ setTool(b.dataset.tool); updateHud(); return; }
+  if(b.dataset.key){ keyPress(b); return; }
+  if(b.dataset.play){ if($('#card h4').textContent.indexOf('Morse')>=0) playMorse(b.dataset.play,wpmFor(G&&G.def)); return; }
+  switch(b.dataset.act){
+    case 'menu': cardStack=null; if(G&&G.origin==='editor'&&E){ openEditor(E.id); } else { if(G&&G.phase==='edit'){ clearTimeout(edTimer); edPersist(); } E=null; openMenu(); } break;
+    case 'begin': $('#overlay').hidden=true; G.phase='plan'; setPhaseUI(); MSG.key=''; updateHud(); showMsg(6000); break;
+    case 'dismiss': hideMsg(); break;
+    case 'send': if(G&&G.phase==='plan'&&!contractOk()){ sfx.bad(); showMsg(9000); } else send(); break;
+    case 'undo': if(G&&G.phase==='plan'&&G.history.length){ var hs=JSON.parse(G.history.pop()); G.structs=hs.s; G.cables=hs.c; sfx.remove(); replan(); } break;
+    case 'clear': if(G.structs.length){ G.history.push(snapshot()); G.structs=[]; G.cables=[]; sfx.remove(); replan(); } break;
+    case 'retry': cardStack=null; startLevel(G.idx,null,G.cdef,G.origin,G.cid); break;
+    case 'next': cardStack=null; startLevel(G.idx+1); break;
+    case 'rules': showRules(); break;
+    case 'book': showBook(); break;
+    case 'book1': showBook(1); break;
+    case 'book2': showBook(2); break;
+    case 'close': closeCard(); break;
+    case 'settings': showSettings(); break;
+    case 'tryMorse': 'SOS'.split('').forEach(function(c,i){ setTimeout(function(){ playMorse(c,S.wpm||10); },i*(1.2/(S.wpm||10))*14*1000); }); break;
+    case 'replay': if(G&&G.phase==='decode') playMorse(G.word[G.dec.i],wpmFor(G.def)); break;
+    case 'testing': S.testing=!S.testing; save(); b.textContent=S.testing?'Testing on':'Testing off'; b.setAttribute('aria-pressed',S.testing); renderMenu(); break;
+    case 'solution': showSolution(); break;
+    case 'sound': S.sound=!S.sound; save(); b.textContent=S.sound?'Sound on':'Sound off'; if(S.sound) sfx.place(); break;
+    case 'newLevel': showNew(); break;
+    case 'newCreate': createLevel($('#newTpl').value); break;
+    case 'impOpen': showImport(); break;
+    case 'impGo': doImport($('#impText').value); break;
+    case 'edSettings': showEdSettings(); break;
+    case 'edApply': edApplySettings(); break;
+    case 'edExport': showExport(); break;
+    case 'edSave': edSaveFile(); break;
+    case 'edCopy': edCopy(); break;
+    case 'edTest': clearTimeout(edTimer); edSolve(); if(isFinite(E.par)) startLevel(-1,null,JSON.parse(JSON.stringify(E.def)),'editor',null); break;
+    case 'edBest': E.showBest=!E.showBest; edBrushes(); edSolve(); break;
+    case 'edUndo': edUndo(); break;
+    case 'edDelete': if(b.dataset.armed){ S.custom=S.custom.filter(function(x){return x.id!==E.id;}); delete S.cprog[E.id]; save(); E=null; openMenu(); } else { b.dataset.armed='1'; b.textContent='Tap again to delete'; } break;
+  }
+});
+window.addEventListener('resize',resize);
+if(window.ResizeObserver) new ResizeObserver(function(){ resize(); }).observe($('#mapwrap'));
+document.addEventListener('gesturestart',function(e){ e.preventDefault(); });
+
+var lastT=performance.now();
+(function loop(){ var now=performance.now(), dt=Math.min(100,now-lastT); lastT=now;
+  if(G){ var fogT=G.def.mist?(G.sim?(G.sim.mist?1:.05):.28):0; if(Math.abs(fogT-G.fogA)>.01){ G.fogA+=(fogT-G.fogA)*Math.min(1,dt/250); G.dirty=true; }
+    if(G.phase==='decode'&&G.def.decode){ G.dec.t-=dt/1000; $('#dtimer').firstChild.style.width=clamp(G.dec.t/G.def.decode*100,0,100)+'%'; if(G.dec.t<=0) miss(null); }
+    if(G.dirty||G.sim||(G.diag&&G.phase==='plan')){ G.dirty=false; draw(); } }
+  requestAnimationFrame(loop); })();
+
+function boot(data){ renderMenu(); heroTick();
+  if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)) setInterval(function(){ if(!$('#menu').hidden) heroTick(); },1300);
+  if(data&&data.edit&&findCustom(data.edit)){ openEditor(data.edit); return; }
+  if(data&&typeof data.idx==='number'&&LEVELS[data.idx]){ startLevel(data.idx,{structs:data.structs||[],cables:data.cables||[]}); $('#overlay').hidden=true; G.phase='plan'; setPhaseUI(); updateHud(); } }
+var hot=window.claude&&window.claude.hot;
+if(hot&&hot.snapshot) hot.snapshot(function(){ return G&&G.phase==='edit'&&E?{edit:E.id}:G&&G.idx>=0?{idx:G.idx,structs:G.structs,cables:G.cables}:{}; });
+if(hot&&hot.ready) hot.ready(boot); else boot((hot&&hot.data)||{});
+})();
+</script>
+
+<script>if('serviceWorker' in navigator) window.addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });</script>
+</body></html>
